@@ -1,0 +1,30 @@
+div.pages {
+	padding:10px;
+	background-color:#f0f0f0;
+	border:1px solid #e0e0e0;
+	margin-bottom:20px;
+}
+
+div.pages div.max {
+	text-align:right;
+	margin-right:15px;
+	height:30px;
+}
+
+div.pages div.page {
+	margin-bottom:5px;
+}
+
+div.pages div.page div.uri {
+	height:16px;
+	float:left;
+	width:190px;
+	text-align:right;
+	overflow:hidden;
+}
+
+div.pages div.page div.bar {
+	height:16px;
+	background-color:#ff0000;
+	margin-left:200px;
+}

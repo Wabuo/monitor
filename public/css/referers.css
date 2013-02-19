@@ -1,0 +1,35 @@
+div.block {
+	padding:10px;
+	background-color:#f0f0f0;
+	border:1px solid #e0e0e0;
+	margin-bottom:10px;
+}
+
+div.host {
+	font-weight:bold;
+	cursor:pointer;
+}
+
+div.host div.total {
+	float:right;
+	font-weight:normal;
+}
+
+div.referers {
+	margin-top:4px;
+	display:none;
+}
+
+div.referers div.referer div.count {
+	float:left;
+	width:40px;
+	text-align:right;
+	padding-right:20px;
+	height:14px;
+}
+
+div.referers div.referer div.link {
+	width:820px;
+	height:14px;
+	overflow:hidden;
+}

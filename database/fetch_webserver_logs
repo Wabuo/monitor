@@ -1,0 +1,287 @@
+#!/usr/bin/php
+<?php
+	chdir(dirname($argv[0]));
+	require("../libraries/configuration.php");
+	require("../libraries/general.php");
+	require("../libraries/user_agent.php");
+
+	/* Database functions
+	 */
+	function get_foreign_key($db, $table, $key, $value) {
+		$query = "select id from %S where %S=%s";
+		if (($result = $db->execute($query, $table, $key, $value)) != false) {
+			return (int)$result[0]["id"];
+		}
+
+		if ($db->insert($table, array("id" => null, $key => $value)) == false) {
+			return false;
+		}
+
+		return $db->last_insert_id;
+	}
+
+	function get_hostname_id($db, $value) {
+		return get_foreign_key($db, "hostnames", "hostname", $value);
+	}
+
+	function get_country_id($db, $ip) {
+		$query = "select country from ip2nation where ip<inet_aton(%s) order by ip desc limit 0,1";
+		if (($result = $db->execute($query, $ip)) == false) {
+			return null;
+		}
+
+		return $result[0]["country"];
+	}
+
+	function get_request_uri_id($db, $value) {
+		return get_foreign_key($db, "request_uris", "request_uri", $value);
+	}
+
+	function get_user_agent_id($db, $value) {
+		$browser = guess_browser($value);
+		$os = guess_os($value);
+
+		if (($browser_id = get_foreign_key($db, "user_agent_browser", "browser", $browser)) == false) {
+			return false;
+		} else if (($os_id = get_foreign_key($db, "user_agent_os", "os", $os)) == false) {
+			return false;
+		}
+
+		$query = "select id from user_agents where browser_id=%d and os_id=%d";
+		if (($result = $db->execute($query, $browser_id, $os_id)) != false) {
+			return (int)$result[0]["id"];
+		}
+
+		if ($db->insert("user_agents", array("id" => null, "browser_id" => (int)$browser_id, "os_id" => (int)$os_id)) == false) {
+			return false;
+		}
+
+		return $db->last_insert_id;
+	}
+
+	function get_referer_id($db, $value, $hostname) {
+		if (substr($value, 0, 7) == "http://") {
+			$offset = 7;
+		} else if (substr($value, 0, 8) == "https://") {
+			$offset = 8;
+		} else {
+			$offset = false;
+		}
+
+		if ($offset !== false) {
+			$len = strlen($hostname);
+			list($host) = explode("/", substr($value, $offset), 2);
+			if (($host == $hostname) || ("www.".$host == $hostname)) {
+				$value = substr($value, $offset + $len);
+			}
+		}
+
+		return get_foreign_key($db, "referers", "referer", $value);
+	}
+
+	/* HTTP class extensions
+	 */
+	class HTTP_monitor extends HTTP {
+		public function __call($method, $parameters) {
+			$this->host = "monitor";
+			return parent::__call($method, $parameters);
+		}
+	}
+
+	class HTTPS_monitor extends HTTPS {
+		public function __call($method, $parameters) {
+			$this->host = "monitor";
+			return parent::__call($method, $parameters);
+		}
+	}
+
+	/* Main program
+	 */
+	error_reporting(E_ALL & ~E_NOTICE);
+
+	$db = new MySQLi_connection(DB_HOSTNAME, DB_DATABASE, DB_USERNAME, DB_PASSWORD);
+	if ($db->connected == false) {
+		exit("Internal error: database not available.\n");
+	}
+
+	if (($webservers = $db->execute("select * from webservers where active=%d", 1)) == false) {
+		exit("Error retrieving webserver IP addresses.\n");
+	}
+
+	foreach ($webservers as $webserver) {
+		if (isset($http)) {
+			unset($http);
+		}
+		if (is_true($webserver["ssl"]) == false) {
+			$http = new HTTP_monitor($webserver["ip_address"], $webserver["port"]);;
+		} else {
+			$http = new HTTPS_monitor($webserver["ip_address"], $webserver["port"]);;
+		}
+
+		$webserver_id = (int)$webserver["id"];
+
+		$result = $http->GET("/");
+		if ($result["status"] != 200) {
+			$event = "Error while getting data list from webserver";
+			$db->insert("events", array(
+				"id"           => null,
+				"timestamp"    => date("Y-m-d H:i:s"),
+				"webserver_id" => (int)$webserver_id,
+				"event"        => $event));
+			continue;
+		}
+
+		$index = new DomDocument();
+		if ($index->loadXML($result["body"]) == false) {
+			continue;
+		}
+
+		$files = $index->getElementsByTagName("file");
+
+		foreach ($files as $file) {
+			$result = $http->GET("/".$file->nodeValue);
+			if ($result["status"] != 200) {
+				$event = "error while getting data file from webserver";
+				$db->insert("events", array(
+					"id"           => null,
+					"timestamp"    => date("Y-m-d H:i:s"),
+					"webserver_id" => (int)$webserver_id,
+					"event"        => $event));
+				continue;
+			}
+			if ($result["headers"]["Content-Type"] == "application/x-gzip") {
+				$result["body"] = gzdecode($result["body"]);
+			}
+
+			$logs = explode("\n", chop($result["body"]));
+
+			foreach ($logs as $log) {
+				$field = explode("\t", chop($log));
+
+				switch ($field[0]) {
+					/* Request
+					 */
+					case "request":
+						list(, $timestamp, $return_code, $hostname, $request_uri, $ip_address, $user_agent, $referer) = $field;
+
+						if (($hostname_id = get_hostname_id($db, $hostname)) == false) {
+							print "Error getting hostname id\n";
+							continue;
+						}
+
+						$country_id = get_country_id($db, $ip_address);
+
+						if (($request_uri_id = get_request_uri_id($db, $request_uri)) == false) {
+							print "Error getting request_uri id\n";
+							continue;
+						}
+						
+						if ($user_agent == "") {
+							$user_agent_id = null;
+						} else if (($user_agent_id = get_user_agent_id($db, $user_agent)) == false) {
+							print "Error getting user_agent id\n";
+							continue;
+						}
+						
+						if ($referer == "") {
+							$referer_id = null;
+						} else if (($referer_id = get_referer_id($db, $referer, $hostname)) == false) {
+							print "Error getting referer id\n";
+							continue;
+						}
+
+						$db->insert("requests", array(
+							"id"             => null,
+							"timestamp"      => date("Y-m-d H:i:s", (int)$timestamp),
+							"webserver_id"   => (int)$webserver_id,
+							"hostname_id"    => (int)$hostname_id,
+							"ip_address"     => $ip_address,
+							"country_id"     => $country_id,
+							"return_code"    => (int)$return_code,
+							"request_uri_id" => (int)$request_uri_id,
+							"user_agent_id"  => (int)$user_agent_id,
+							"referer_id"     => (int)$referer_id));
+						break;
+					/* Server
+					 */
+					case "server":
+						list(, $timestamp_begin, $timestamp_end, $connections) = $field;
+
+						$db->insert("server_statistics", array(
+							"id"              => null,
+							"timestamp_begin" => date("Y-m-d H:i:s", (int)$timestamp_begin),
+							"timestamp_end"   => date("Y-m-d H:i:s", (int)$timestamp_end),
+							"webserver_id"    => (int)$webserver_id,
+							"simult_conns"    => (int)$connections));
+						break;
+					/* Host
+					 */
+					case "host":
+						list(, $timestamp_begin, $timestamp_end, $hostname, $requests, $bytes_sent, $bans, $exploit_attempts,
+							$result_forbidden, $result_not_found, $result_internal_error) = $field;
+
+						if (($hostname_id = get_hostname_id($db, $hostname)) == false) {
+							print "Error getting hostname id\n";
+							continue;
+						}
+
+						$day = date("Y-m-d", (int)$timestamp_begin);
+						if ($day === date("Y-m-d", (int)$timestamp_end)) {
+							/* Check for existing log on same day
+							 */
+							$query = "select * from host_statistics where webserver_id=%d and hostname_id=%d and ".
+									 "timestamp_begin>=%s and timestamp_end<=%s limit 1";
+							$result = $db->execute($query, $webserver_id, $hostname_id, $day." 00:00:00", $day." 23:59:59");
+						} else {
+							/* Log overlaps midnight
+							 */
+							$result = false;
+						}
+
+						if ($result == false) {
+							/* Insert new host record
+							 */
+							$db->insert("host_statistics", array(
+								"id"                    => null,
+								"timestamp_begin"       => date("Y-m-d H:i:s", (int)$timestamp_begin),
+								"timestamp_end"         => date("Y-m-d H:i:s", (int)$timestamp_end),
+								"webserver_id"          => (int)$webserver_id,
+								"hostname_id"           => (int)$hostname_id,
+								"requests"              => (int)$requests,
+								"bytes_sent"            => (int)$bytes_sent,
+								"bans"                  => (int)$bans,
+								"exploit_attempts"      => (int)$exploit_attempts,
+								"result_forbidden"      => (int)$result_forbidden,
+								"result_not_found"      => (int)$result_not_found,
+								"result_internal_error" => (int)$result_internal_error));
+						} else {
+							/* Update existing host record
+							 */
+							$current = $result[0];
+							$data = array(
+								"timestamp_end"         => date("Y-m-d H:i:s", (int)$timestamp_end),
+								"requests"              => (int)($current["requests"] + $requests),
+								"bytes_sent"            => (int)($current["bytes_sent"] + $bytes_sent),
+								"bans"                  => (int)($current["bans"] + $bans),
+								"exploit_attempts"      => (int)($current["exploit_attempts"] + $exploit_attempts),
+								"result_forbidden"      => (int)($current["result_forbidden"] + $result_forbidden),
+								"result_not_found"      => (int)($current["result_not_found"] + $result_not_found),
+								"result_internal_error" => (int)($current["result_internal_error"] + $result_internal_error));
+							$db->update("host_statistics", $current["id"], $data);
+						}
+						break;
+					/* Event
+					 */
+					default:
+						list($event, $timestamp) = $field;
+
+						$db->insert("events", array(
+							"id"           => null,
+							"timestamp"    => date("Y-m-d H:i:s", (int)$timestamp),
+							"webserver_id" => (int)$webserver_id,
+							"event"        => $event));
+				}
+			}
+		}
+	}
+?>

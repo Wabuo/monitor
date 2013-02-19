@@ -1,0 +1,8 @@
+table.list {
+	width:100%;
+	margin-bottom:15px;
+}
+
+table.list th.timestamp, table.list th.webserver {
+	width:200px;
+}

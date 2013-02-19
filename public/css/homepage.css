@@ -1,0 +1,33 @@
+div.left {
+	float:left;
+	width:48%;
+}
+
+fieldset.webserver table {
+	border-spacing:0;
+}
+fieldset.webserver table td:first-child {
+	width:100px;
+}
+
+div.right {
+	float:right;
+	width:48%;
+}
+
+fieldset.list {
+	margin-bottom:20px;
+	padding:10px;
+	border:1px solid #e0e0e0;
+	background-color:#f0f0f0;
+}
+fieldset.list h2 {
+	margin-bottom:5px;
+}
+fieldset.list div.item {
+	margin-bottom:2px;
+}
+fieldset.list div.item div.label {
+	float:left;
+	width:200px;
+}

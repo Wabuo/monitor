@@ -1,0 +1,22 @@
+table.roles {
+	width:100%;
+}
+table.roles th.users {
+	width:100px;
+}
+
+ul.users {
+	list-style-type:square;
+	margin:0px;
+}
+input.button {
+	margin-top:15px;
+	margin-right:10px;
+}
+div.members {
+	margin-top:20px;
+}
+div.members ul {
+	margin:5px;
+	padding-left:15px;
+}

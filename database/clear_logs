@@ -1,0 +1,22 @@
+#!/usr/bin/php
+<?php
+	chdir(dirname($argv[0]));
+	require("../libraries/configuration.php");
+
+	if (($argv[1] != "for") || ($argv[2] != "sure")) {
+		exit("Are you 'for sure'?\n");
+	}
+
+	$db = new MySQLi_connection(DB_HOSTNAME, DB_DATABASE, DB_USERNAME, DB_PASSWORD);
+	if ($db->connected == false) {
+		exit("Internal error: database not available.\n");
+	}
+	
+	$tables = array("host_statistics", "server_statistics", "requests",
+		"user_agents", "user_agent_browser", "user_agent_os",
+		"events", "hostnames", "referers", "request_uris", "webservers");
+	foreach ($tables as $table) {
+		$query = "truncate table %S";
+		$db->query($query, $table);
+	}
+?>

@@ -1,0 +1,60 @@
+monitor (0.7) stable; urgency=low
+
+  * Improved menu library.
+  * Account activity overview added to profile module.
+
+ -- Hugo Leisink <hugo@leisink.net>  Sun, 13 Dec 2013  8:01:07 +0100
+
+monitor (0.6) stable; urgency=low
+
+  * Host statistics module made faster.
+  * Pages module added.
+  * IP-Country conversion table updated.
+  * Small bugfixes.
+
+ -- Hugo Leisink <hugo@leisink.net>  Sun, 13 Dec 2013  8:01:07 +0100
+
+monitor (0.5) stable; urgency=low
+
+  * Renamed actions to events.
+  * Error while downloading webserver data logged as event.
+  * Generic messages, like high server load, logged as event.
+  * Removed unnecessary files and Banshee features.
+  * Small improvements and bugfixes.
+
+ -- Hugo Leisink <hugo@leisink.net>  Sat, 31 May 2012 15:54:23 +0200
+
+monitor (0.4) stable; urgency=low
+
+  * Banshee framework updated to version 3.0.
+  * Improved User-Agent parsing.
+  * Browser version filter in 'Web browsers' and 'Browsers with OSes' page.
+  * Detailed information for 'Host statistics' page.
+  * Server statistics list for each webserver.
+  * Session Manager added.
+  * Settings via CMS.
+  * Small improvements.
+
+ -- Hugo Leisink <hugo@leisink.net>  Sat,  3 Mar 2012 14:39:44 +0100
+
+monitor (0.3) stable; urgency=low
+
+  * Banshee framework updated to version 2.1.
+  * Improved Google referer handling.
+  * Count filter for Origins and Referer pages.
+
+ -- Hugo Leisink <hugo@leisink.net>  Mon,  7 Jun 2010 20:47:21 +0200
+
+monitor (0.2) stable; urgency=low
+
+  * Improved database setup script.
+  * Banshee bugfixes applied.
+  * Bugfix: using port number while fetching log.
+
+ -- Hugo Leisink <hugo@leisink.net>  Mon, 19 Apr 2010 23:30:54 +0200
+
+monitor (0.1) stable; urgency=low
+
+  * Initial release
+
+ -- Hugo Leisink <hugo@leisink.net>  Fri, 12 Feb 2010  9:07:37 +0100

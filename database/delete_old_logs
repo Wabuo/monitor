@@ -1,0 +1,122 @@
+#!/usr/bin/php
+<?php
+	chdir(dirname($argv[0]));
+	require("../libraries/configuration.php");
+
+	$db = new MySQLi_connection(DB_HOSTNAME, DB_DATABASE, DB_USERNAME, DB_PASSWORD);
+	if ($db->connected == false) {
+		exit("Internal error: database not available.\n");
+	}
+
+	$date = date("Y-m-d", strtotime("-".MONITOR_DAYS." days"));
+
+	/* Actions
+	 */
+	$query = "delete from events where timestamp<%s";
+	if ($db->query($query, $date) == false) {
+		exit("Error deleting events.\n");
+	}
+
+	/* Server statistics
+	 */
+	$query = "delete from server_statistics where timestamp_end<%s";
+	if ($db->query($query, $date) == false) {
+		exit("Error deleting server statistics.\n");
+	}
+
+	/* Host statistics
+	 */
+	$query = "delete from host_statistics where timestamp_end<%s";
+	if ($db->query($query, $date) == false) {
+		exit("Error deleting server statistics.\n");
+	}
+
+	/* Requests
+	 */
+	$query = "delete from requests where timestamp<%s";
+	if ($db->query($query, $date) == false) {
+		exit("Error deleting server statistics.\n");
+	}
+
+	/* Unsed hostnames
+	 */
+	$query = "select id from hostnames h where (select count(*) from host_statistics where hostname_id=h.id)=0";
+	if (($ids1 = $db->execute($query)) === false) {
+		exit("Error deleting unused hostnames.\n");
+	}
+
+	$query = "select id from hostnames h where (select count(*) from requests where hostname_id=h.id)=0";
+	if (($ids2 = $db->execute($query)) === false) {
+		exit("Error deleting unused hostnames.\n");
+	}
+
+	if (($c1 = count($ids1) > 0) && (($c2 = count($ids2)) > 0)) {
+		$params1 = implode(", ", array_fill(0, $c1, "%d"));
+		$params2 = implode(", ", array_fill(0, $c2, "%d"));
+		$query = "delete from hostnames where id in (".$params1.") and id in (".$params2.")";
+		unset($params1);
+		unset($params2);
+		if ($db->query($query, $ids1, $ids2) == false) {
+			exit("Error deleting unused hostnames.\n");
+		}
+	}
+	unset($ids1);
+	unset($ids2);
+
+	/* Delete unused records
+	 */
+	function delete_unused_records($db, $table, $ref_table, $ref_column) {
+		$query = "select id from %S t where (select count(*) from %S where %S=t.id)=0";
+		if (($resource = $db->query($query, $table, $ref_table, $ref_column)) === false) {
+			return false;
+		}
+
+		do {
+			$ids = array();
+			$count = 0;
+			while (($id = $db->fetch($resource)) !== false) {
+				array_push($ids, $id);
+				if (++$count == 1000) {
+					break;
+				}
+			}
+
+			if ($count == 0) {
+				break;
+			}
+
+			$query = "delete from %S where id in (".implode(", ", array_fill(0, $count, "%d")).")";
+			if ($db->query($query, $table, $ids) == false) {
+				return false;
+			}
+		} while ($id !== false);
+
+		return true;
+	}
+
+	/* Unused request URIs
+	 */
+	if (delete_unused_records($db, "request_uris", "requests", "request_uri_id") == false) {
+		exit("Error deleting unused request URIs.\n");
+	}
+
+	/* Unused user agents
+	 */
+	if (delete_unused_records($db, "user_agents", "requests", "user_agent_id") == false) {	
+		exit("Error deleting unused user agents.\n");
+	}
+
+	if (delete_unused_records($db, "user_agent_browser", "user_agents", "browser_id") == false) {	
+		exit("Error deleting unused browers.\n");
+	}
+
+	if (delete_unused_records($db, "user_agent_os", "user_agents", "os_id") == false) {	
+		exit("Error deleting unused OSes.\n");
+	}
+
+	/* Unused referers
+	 */
+	if (delete_unused_records($db, "referers", "requests", "referer_id") == false) {	
+		exit("Error deleting unused referers.\n");
+	}
+?>

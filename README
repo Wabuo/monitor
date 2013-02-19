@@ -1,0 +1,67 @@
+UNDERSTAND HOW TO HIAWATHA MONITOR WORKS
+=========================================
+Read the information at http://www.hiawatha-webserver.org/howto/monitor to understand what the Hiawatha Monitor is and how it works..
+
+
+CONFIGURE YOUR WEBSERVER
+=========================
+Use the following Hiawatha configuration for this website.
+
+UrlToolkit {
+	ToolkitID = monitor
+	RequestURI isfile Return
+	Match ^/(css|images|js)/ Return
+	Match ^/(favicon.ico|robots.txt)$ Return
+	Match .*\?(.*) Rewrite /index.php?$1
+	Match .* Rewrite /index.php
+}
+
+VirtualHost {
+	Hostname = monitor.domain.com
+	WebsiteRoot = /var/www/monitor/public
+	AccessLogfile = /var/www/monitor/logfiles/access.log
+	ErrorLogfile = /var/www/monitor/logfiles/error.log
+	StartFile = index.php
+	ExecuteCGI = yes
+#	UseFastCGI = PHP5 # Use if you use PHP as a FastCGI daemon
+	TimeForCGI = 15
+	UseToolkit = monitor
+}
+
+
+CONFIGURE PHP
+==============
+The Hiawatha Monitor requires the following PHP modules:
+	php5-mysql and php5-xsl
+
+Use the following PHP settings:
+	cgi.fix_pathinfo = 0 (when using FastCGI PHP), 1 (otherwise)
+	cgi.rfc2616_headers = 1
+	register_globals = Off
+	date.timezone = <your timezone>
+
+
+CONFIGURE YOUR DATABASE
+========================
+Change the database settings in 'settings/website.conf' and run the script 'database/setup_database'.
+
+The database already contains the following user:
+	admin:monitor
+
+
+CONFIGURE CRON DAEMON
+======================
+Use the cron daemon to fetch the information from the webservers:
+
+# Crontab
+SHELL=/bin/sh
+MAILTO=<account name of which you can read e-mail>
+*/5 * * * * /path/to/monitor/website/database/fetch_webserver_logs
+3 1 * * *   /path/to/monitor/website/database/delete_old_logs
+
+
+USING THE HIAWATHA MONITOR
+===========================
+Please note that it might take some time (about an hour) before host statistics show up. The reason is because of the fact that Hiawatha caches these statistics for performance reasons.
+
+Don't forget to change the admin password and to check out the settings in the Settings administration page. When you're done testing, set DEBUG_MODE in settings/website.conf to 'no'.
