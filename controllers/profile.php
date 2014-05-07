@@ -7,6 +7,7 @@
 			$this->output->open_tag("edit");
 
 			$this->output->add_tag("email", $profile["email"]);
+			$this->output->add_tag("prowl_key", $profile["prowl_key"]);
 			if ($this->user->status == USER_STATUS_CHANGEPWD) {
 				$this->output->add_tag("cancel", "Logout", array("page" => LOGOUT_MODULE));
 			}
@@ -41,7 +42,9 @@
 					$this->user->log_action("profile updated");
 				}
 			} else {
-				$user = array("email" => $this->user->email);
+				$user = array(
+					"email"     => $this->user->email,
+					"prowl_key" => $this->user->prowl_key);
 				$this->show_profile_form($user);
 			}
 		}

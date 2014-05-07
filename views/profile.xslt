@@ -15,6 +15,7 @@
 <tr><td>New password:</td><td><input type="password" name="password" id="password" class="text" /> <font style="font-size:10px">(will not be changed when left blank)</font></td></tr>
 <tr><td>Repeat password:</td><td><input type="password" name="repeat" id="repeat" class="text" /></td></tr>
 <tr><td>E-mail address:</td><td><input type="text" name="email" value="{email}" class="text" /></td></tr>
+<tr><td>Prowl key:</td><td><input type="text" name="prowl_key" value="{prowl_key}" class="text" /></td></tr>
 </table><br />
 
 <input type="submit" name="submit_button" value="Update profile" class="button" />

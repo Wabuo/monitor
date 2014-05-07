@@ -55,6 +55,7 @@
 </xsl:for-each>
 </select></td></tr>
 <tr><td>Full name:</td><td><input type="text" name="fullname" value="{user/fullname}" class="text" /></td></tr>
+<tr><td>Prowl key:</td><td><input type="text" name="prowl_key" value="{user/prowl_key}" class="text" /></td></tr>
 <tr><td valign="top">Roles:</td><td>
 <xsl:for-each select="roles/role">
 <div><input type="checkbox" name="roles[{@id}]" value="{@id}" class="role">

@@ -3,8 +3,16 @@
 <xsl:include href="../includes/banshee.xslt" />
 <xsl:include href="../includes/tablemanager.xslt" />
 
+<xsl:template match="tablemanager/label">
+<table class="label">
+<tr><td>Key:</td><td><xsl:value-of select="key" /></td></tr>
+<tr><td>Type:</td><td><xsl:value-of select="type" /></td></tr>
+</table>
+</xsl:template>
+
 <xsl:template match="content">
 <xsl:apply-templates select="tablemanager" />
+<xsl:apply-templates select="tablemanager/label" />
 </xsl:template>
 
 </xsl:stylesheet>

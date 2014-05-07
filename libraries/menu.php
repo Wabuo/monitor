@@ -36,7 +36,7 @@
 				return false;
 			}
 
-			$this->parent_id = $menu[0]["id"];
+			$this->parent_id = (int)$menu[0]["id"];
 
 			return true;
 		}
@@ -71,7 +71,7 @@
 		 */
 		private function get_menu($id, $depth = 1, $current_url = null) {
 			$query = "select * from menu where parent_id=%d order by %S";
-			if (($menu = $this->db->execute($query, $id, "order")) === false) {
+			if (($menu = $this->db->execute($query, $id, "id")) === false) {
 				return false;
 			}
 
@@ -138,9 +138,25 @@
 		 * ERROR:  false
 		 */
 		public function to_output($current_url = null) {
-#			if (isset($_SESSION["menu_cache"]) == false) {
+			/* Handle menu updates
+			 */
+			$cache = new cache($this->db, "menu");
+			if ($cache->last_updated === null) {
+				$cache->store("last_updated", time(), 365 * DAY);
+			}
+			if (isset($_SESSION["menu_last_updated"]) == false) {
+				$_SESSION["menu_last_updated"] = $cache->last_updated;
+			} else if ($cache->last_updated > $_SESSION["menu_last_updated"]) {
 				$_SESSION["menu_cache"] = array();
-#			}
+				$_SESSION["menu_last_updated"] = $cache->last_updated;
+			}
+			unset($cache);
+
+			/* Build menu
+			 */
+			if (isset($_SESSION["menu_cache"]) == false) {
+				$_SESSION["menu_cache"] = array();
+			}
 			$cache = &$_SESSION["menu_cache"];
 
 			$username = ($this->user !== null) ? $this->user->username : "";

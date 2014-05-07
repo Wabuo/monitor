@@ -116,7 +116,7 @@
 		}
 
 		public function create_user($user) {
-			$keys = array("id", "username", "password", "one_time_key", "status", "fullname", "email");
+			$keys = array("id", "username", "password", "one_time_key", "status", "fullname", "email", "prowl_key");
 
 			$user["id"] = null;
 			$user["one_time_key"] = null;
@@ -143,7 +143,8 @@
 		}
 
 		public function update_user($user) {
-			$keys = array("username", "fullname", "email");
+			$keys = array("username", "fullname", "email", "prowl_key");
+
 			if ($user["password"] != "") {
 				array_push($keys, "password");
 				if (is_false($user["password_hashed"])) {

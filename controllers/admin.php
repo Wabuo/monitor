@@ -17,6 +17,14 @@
 				"Webservers"    => array("admin/webserver", "webserver.png")));
 
 		public function execute() {
+			if (($this->user->id == 1) && ($this->user->password == "08b5411f848a2581a41672a759c87380")) {
+				$this->output->add_system_message("Don't forget to change the password of the admin account!");
+			}
+
+			if ($this->page->pathinfo[1] != null) {
+				$this->output->add_system_message("The administration module '%s' does not exist.", $this->page->pathinfo[1]);
+			}
+
 			if (is_true(DEBUG_MODE)) {
 				$this->output->add_system_message("Website is running in debug mode. Set DEBUG_MODE in settings/website.conf to 'no'.");
 			}

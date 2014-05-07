@@ -3,6 +3,15 @@ table.list {
 	margin-bottom:15px;
 }
 
-table.list th.timestamp, table.list th.webserver {
+table.list th.timestamp {
 	width:200px;
+}
+
+table.list th.webserver {
+	width:150px;
+}
+
+table td {
+	vertical-align:top;
+	padding-right:10px;
 }

@@ -196,12 +196,19 @@
 
 		/* Add system message to message buffer
 		 *
-		 * input:  string message
+		 * input:  string format[, string arg, ...]
 		 * output: -
 		 * error:  -
 		 */
-		public function add_system_message($message) {
-			array_push($this->system_messages, $message);
+		public function add_system_message($format) {
+			if (func_num_args() == 0) {
+			return;
+			}
+
+			$args = func_get_args();
+			$format = array_shift($args);
+
+			array_push($this->system_messages, vsprintf($format, $args));
 		}
 
 		/* Add message to message buffer
@@ -210,8 +217,15 @@
 		 * output: -
 		 * error:  -
 		 */
-		public function add_message($message) {
-			array_push($this->messages, $message);
+		public function add_message($format) {
+			if (func_num_args() == 0) {
+				return;
+			}
+
+			$args = func_get_args();
+			$format = array_shift($args);
+
+			array_push($this->messages, vsprintf($format, $args));
 		}
 
 		/* Close XML tag

@@ -1,0 +1,79 @@
+div.timespan {
+	margin-bottom:10px;
+	font-size:14px;
+	text-align:right;
+}
+
+/* Graph
+ */
+fieldset.statistics {
+	position:relative;
+}
+
+fieldset.statistics div.info {
+	text-align:right;
+	position:relative;
+	top:-8px;
+	padding-right:10px;
+}
+
+fieldset.statistics span.count {
+	width:200px;
+	display:inline-block;
+}
+
+fieldset.statistics span.date {
+	width:200px;
+	display:inline-block;
+}
+
+fieldset.statistics div.ybar {
+	float:left;
+	min-width:50px;
+	text-align:right;
+	background-color:inherit;
+	padding-right:15px;
+	margin-right:10px;
+	border-right:1px solid #e0e0e0;
+}
+
+fieldset.statistics div.graph {
+	background-color:#ffffff;
+	border:1px solid #e0e0e0;
+	padding:10px;
+	width:876px;
+}
+
+fieldset.statistics div.graph div.bar {
+	float:left;
+	position:relative;
+}
+fieldset.statistics div.graph div.bar div.percentage {
+	background-color:#ff0000;
+	position:absolute;
+	bottom:0;
+	border-bottom:1px solid #ffa0a0;
+}
+fieldset.statistics div.graph div.bar div.weekend_yes {
+	background-color:#c00000;
+}
+
+/* Day statistics
+ */
+input.back {
+	position:absolute;
+	right:30px;
+	top:20px;
+}
+
+table.list {
+	width:100%;
+}
+
+table.list th.webserver {
+	width:200px;
+}
+
+table.list th.count {
+	width:250px;
+}

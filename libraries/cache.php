@@ -35,7 +35,7 @@
 
 			/* In memory cache?
 			 */
-			if (isset($this->cache[$fkey])) {
+			if (isset($this->cache[$key])) {
 				if ($now > $this->cache[$key]["timeout"]) {
 					$this->delete($orig_key);
 					return null;

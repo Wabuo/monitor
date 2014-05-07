@@ -1,82 +1,76 @@
 #!/usr/bin/php
 <?php
+	define("MAX_CACHE_SIZE", 10);
+
 	chdir(dirname($argv[0]));
 	require("../libraries/configuration.php");
 	require("../libraries/general.php");
-	require("../libraries/user_agent.php");
+	require("../libraries/http.php");
+	require("../libraries/prowl.php");
 
 	/* Database functions
 	 */
 	function get_foreign_key($db, $table, $key, $value) {
+		static $cache = array();
+
+		$index = implode(":", array($table, $key, $value));
+		if (isset($cache[$index])) {
+			return $cache[$index];
+		}
+
 		$query = "select id from %S where %S=%s";
 		if (($result = $db->execute($query, $table, $key, $value)) != false) {
-			return (int)$result[0]["id"];
+			$cache[$index] = (int)$result[0]["id"];
+		} else {
+			if ($db->insert($table, array("id" => null, $key => $value)) == false) {
+				return false;
+			}
+			$cache[$index] = $db->last_insert_id;
 		}
 
-		if ($db->insert($table, array("id" => null, $key => $value)) == false) {
-			return false;
-		}
-
-		return $db->last_insert_id;
+		return $cache[$index];
 	}
 
 	function get_hostname_id($db, $value) {
 		return get_foreign_key($db, "hostnames", "hostname", $value);
 	}
 
-	function get_country_id($db, $ip) {
-		$query = "select country from ip2nation where ip<inet_aton(%s) order by ip desc limit 0,1";
-		if (($result = $db->execute($query, $ip)) == false) {
-			return null;
+	function log_event($db, $event, $webserver_id, $timestamp = null) {
+		if ($timestamp == null) {
+			$timestamp = time();
 		}
 
-		return $result[0]["country"];
+		$data = array(
+			"id"           => null,
+			"timestamp"    => date("Y-m-d H:i:s", $timestamp),
+			"webserver_id" => (int)$webserver_id,
+			"event"        => $event);
+
+		return $db->insert("events", $data) !== false;
 	}
 
-	function get_request_uri_id($db, $value) {
-		return get_foreign_key($db, "request_uris", "request_uri", $value);
-	}
+	function send_prowl_notification($db, $message) {
+		static $keys = null;
+		static $prowl = null;
 
-	function get_user_agent_id($db, $value) {
-		$browser = guess_browser($value);
-		$os = guess_os($value);
-
-		if (($browser_id = get_foreign_key($db, "user_agent_browser", "browser", $browser)) == false) {
-			return false;
-		} else if (($os_id = get_foreign_key($db, "user_agent_os", "os", $os)) == false) {
-			return false;
-		}
-
-		$query = "select id from user_agents where browser_id=%d and os_id=%d";
-		if (($result = $db->execute($query, $browser_id, $os_id)) != false) {
-			return (int)$result[0]["id"];
-		}
-
-		if ($db->insert("user_agents", array("id" => null, "browser_id" => (int)$browser_id, "os_id" => (int)$os_id)) == false) {
-			return false;
-		}
-
-		return $db->last_insert_id;
-	}
-
-	function get_referer_id($db, $value, $hostname) {
-		if (substr($value, 0, 7) == "http://") {
-			$offset = 7;
-		} else if (substr($value, 0, 8) == "https://") {
-			$offset = 8;
-		} else {
-			$offset = false;
-		}
-
-		if ($offset !== false) {
-			$len = strlen($hostname);
-			list($host) = explode("/", substr($value, $offset), 2);
-			if (($host == $hostname) || ("www.".$host == $hostname)) {
-				$value = substr($value, $offset + $len);
+		if ($keys === null) {
+			$query = "select * from users where prowl_key!=%s";
+			if (($users = $db->execute($query, "")) == false) {
+				return;
 			}
+			$keys = array();
+			foreach ($users as $user) {
+				array_push($keys, $user["prowl_key"]);
+			}
+
+			$prowl = new prowl("Hiawatha Monitor", $keys);
 		}
 
-		return get_foreign_key($db, "referers", "referer", $value);
+		if ($prowl === null) {
+			return;
+		}
+
+		$prowl->send_notification("Event log", $message);
 	}
 
 	/* HTTP class extensions
@@ -99,12 +93,14 @@
 	 */
 	error_reporting(E_ALL & ~E_NOTICE);
 
+	$debug_mode = ($argv[1] == "-d");
+
 	$db = new MySQLi_connection(DB_HOSTNAME, DB_DATABASE, DB_USERNAME, DB_PASSWORD);
 	if ($db->connected == false) {
 		exit("Internal error: database not available.\n");
 	}
 
-	if (($webservers = $db->execute("select * from webservers where active=%d", 1)) == false) {
+	if (($webservers = $db->execute("select * from webservers where active=%d", 1)) === false) {
 		exit("Error retrieving webserver IP addresses.\n");
 	}
 
@@ -120,14 +116,25 @@
 
 		$webserver_id = (int)$webserver["id"];
 
+		if ($debug_mode) {
+			printf("Retrieving index from %s...\n", $webserver["name"]);
+		}
 		$result = $http->GET("/");
 		if ($result["status"] != 200) {
-			$event = "Error while getting data list from webserver";
-			$db->insert("events", array(
-				"id"           => null,
-				"timestamp"    => date("Y-m-d H:i:s"),
-				"webserver_id" => (int)$webserver_id,
-				"event"        => $event));
+			$db->update("webservers", $webserver_id, array("errors" => $webserver["errors"] + 1));
+			$event = "Error while getting statistics logfile index from webserver";
+			log_event($db, $event, $webserver_id);
+
+			$message = sprintf("Webserver %s appears to be offline.", $webserver["name"]);
+			send_prowl_notification($db, $message);
+			continue;
+		}
+
+		if ($webserver["errors"] != 0) {
+			$db->update("webservers", $webserver_id, array("errors" => 0));
+		}
+
+		if ($result["headers"]["Content-Type"] != "text/xml") {
 			continue;
 		}
 
@@ -139,70 +146,83 @@
 		$files = $index->getElementsByTagName("file");
 
 		foreach ($files as $file) {
+			if ($debug_mode) {
+				printf("Downloading %s...\n", $file->nodeValue);
+			}
 			$result = $http->GET("/".$file->nodeValue);
 			if ($result["status"] != 200) {
 				$event = "error while getting data file from webserver";
-				$db->insert("events", array(
-					"id"           => null,
-					"timestamp"    => date("Y-m-d H:i:s"),
-					"webserver_id" => (int)$webserver_id,
-					"event"        => $event));
+				log_event($db, $event, $webserver_id);
 				continue;
 			}
 			if ($result["headers"]["Content-Type"] == "application/x-gzip") {
 				$result["body"] = gzdecode($result["body"]);
 			}
 
-			$logs = explode("\n", chop($result["body"]));
+			$loglines = explode("\n", chop($result["body"]));
 
-			foreach ($logs as $log) {
-				$field = explode("\t", chop($log));
+			foreach ($loglines as $logline) {
+				if ($debug_mode) {
+					printf("Processing [%s]\n", $logline);
+				}
+				$field = explode("\t", chop($logline));
 
 				switch ($field[0]) {
-					/* Request
+					/* Request (obsolete)
 					 */
 					case "request":
-						list(, $timestamp, $return_code, $hostname, $request_uri, $ip_address, $user_agent, $referer) = $field;
+						break;
+					/* CGI runtime
+					 */
+					case "cgi":
+						list(, $timestamp_begin, $timestamp_end, $hostname, $time_0_1,
+						       $time_1_3, $time_3_10, $time_10_x) = $field;
 
 						if (($hostname_id = get_hostname_id($db, $hostname)) == false) {
 							print "Error getting hostname id\n";
 							continue;
 						}
 
-						$country_id = get_country_id($db, $ip_address);
-
-						if (($request_uri_id = get_request_uri_id($db, $request_uri)) == false) {
-							print "Error getting request_uri id\n";
-							continue;
-						}
-						
-						if ($user_agent == "") {
-							$user_agent_id = null;
-						} else if (($user_agent_id = get_user_agent_id($db, $user_agent)) == false) {
-							print "Error getting user_agent id\n";
-							continue;
-						}
-						
-						if ($referer == "") {
-							$referer_id = null;
-						} else if (($referer_id = get_referer_id($db, $referer, $hostname)) == false) {
-							print "Error getting referer id\n";
-							continue;
+						$day = date("Y-m-d", (int)$timestamp_begin);
+						if ($day === date("Y-m-d", (int)$timestamp_end)) {
+							/* Check for existing log on same day
+							 */
+							$query = "select * from cgi_statistics where webserver_id=%d and hostname_id=%d and ".
+									 "timestamp_begin>=%s and timestamp_end<=%s limit 1";
+							$result = $db->execute($query, $webserver_id, $hostname_id, $day." 00:00:00", $day." 23:59:59");
+						} else {
+							/* Log overlaps midnight
+							 */
+							$result = false;
 						}
 
-						$db->insert("requests", array(
-							"id"             => null,
-							"timestamp"      => date("Y-m-d H:i:s", (int)$timestamp),
-							"webserver_id"   => (int)$webserver_id,
-							"hostname_id"    => (int)$hostname_id,
-							"ip_address"     => $ip_address,
-							"country_id"     => $country_id,
-							"return_code"    => (int)$return_code,
-							"request_uri_id" => (int)$request_uri_id,
-							"user_agent_id"  => (int)$user_agent_id,
-							"referer_id"     => (int)$referer_id));
+						if ($result == false) {
+							/* Insert new CGI record
+							 */
+							$db->insert("cgi_statistics", array(
+								"id"                    => null,
+								"timestamp_begin"       => date("Y-m-d H:i:s", (int)$timestamp_begin),
+								"timestamp_end"         => date("Y-m-d H:i:s", (int)$timestamp_end),
+								"webserver_id"          => (int)$webserver_id,
+								"hostname_id"           => (int)$hostname_id,
+								"time_0_1"              => (int)$time_0_1,
+								"time_1_3"              => (int)$time_1_3,
+								"time_3_10"             => (int)$time_3_10,
+								"time_10_x"             => (int)$time_10_x));
+						} else {
+							/* Update existing CGI record
+							 */
+							$current = $result[0];
+							$data = array(
+								"timestamp_end"         => date("Y-m-d H:i:s", (int)$timestamp_end),
+								"time_0_1"              => (int)($current["time_0_1"] + $time_0_1),
+								"time_1_3"              => (int)($current["time_1_3"] + $time_1_3),
+								"time_3_10"             => (int)($current["time_3_10"] + $time_3_10),
+								"time_10_x"             => (int)($current["time_10_x"] + $time_10_x));
+							$db->update("cgi_statistics", $current["id"], $data);
+						}
 						break;
-					/* Server
+					/* Server statistic
 					 */
 					case "server":
 						list(, $timestamp_begin, $timestamp_end, $connections) = $field;
@@ -214,11 +234,11 @@
 							"webserver_id"    => (int)$webserver_id,
 							"simult_conns"    => (int)$connections));
 						break;
-					/* Host
+					/* Host statistic
 					 */
 					case "host":
 						list(, $timestamp_begin, $timestamp_end, $hostname, $requests, $bytes_sent, $bans, $exploit_attempts,
-							$result_forbidden, $result_not_found, $result_internal_error) = $field;
+						       $result_forbidden, $result_not_found, $result_internal_error) = $field;
 
 						if (($hostname_id = get_hostname_id($db, $hostname)) == false) {
 							print "Error getting hostname id\n";
@@ -272,14 +292,15 @@
 						break;
 					/* Event
 					 */
+					case "event";
+						list(, $event, $timestamp) = $field;
+						log_event($db, $event, $webserver_id, $timestamp);
+						break;
+					/* Rest
+					 */
 					default:
 						list($event, $timestamp) = $field;
-
-						$db->insert("events", array(
-							"id"           => null,
-							"timestamp"    => date("Y-m-d H:i:s", (int)$timestamp),
-							"webserver_id" => (int)$webserver_id,
-							"event"        => $event));
+						log_event($db, $event, $webserver_id, $timestamp);
 				}
 			}
 		}

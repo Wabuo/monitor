@@ -155,7 +155,7 @@
 		 * OUTPUT: string printf format
 		 * ERROR:  -
 		 */
-		private function type_to_format($variable) {
+		protected function type_to_format($variable) {
 			if (is_integer($variable)) {
 				return "%d";
 			}

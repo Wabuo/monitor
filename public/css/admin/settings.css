@@ -2,6 +2,10 @@ table.list {
 	width:100%;
 }
 
+td:first-child {
+	width:35px;
+}
+
 table.list th.key {
 	width:200px;
 }
@@ -10,8 +14,7 @@ table.list th.type {
 	width:100px;
 }
 
-input.button {
-	margin-top:15px;
+input.button, a.button {
 	margin-right:10px;
 }
 

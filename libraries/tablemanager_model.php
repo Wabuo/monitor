@@ -1,5 +1,5 @@
 <?php
-	/* libraries/oo/tablemanager_model.php
+	/* libraries/tablemanager_model.php
 	 *
 	 * Copyright (C) by Hugo Leisink <hugo@leisink.net>
 	 * This file is part of the Banshee PHP framework
@@ -7,10 +7,16 @@
 	 */
 
 	abstract class tablemanager_model extends model {
-		private $valid_types = array("integer", "varchar", "text", "boolean", "datetime", "enum", "foreignkey");
+		private $valid_types = array("integer", "varchar", "text", "ckeditor",
+			"boolean", "datetime", "enum", "foreignkey", "blob");
 		protected $table = null;
 		protected $order = "id";
+		protected $desc_order = false;
 		protected $elements = null;
+		protected $alphabetize_column = null;
+		protected $allow_create = true;
+		protected $allow_update = true;
+		protected $allow_delete = true;
 
 		/* Constructor
 		 *
@@ -19,15 +25,43 @@
 		 * ERROR:  -
 		 */
 		public function __construct() {
-			$args = func_get_args();
-			call_user_func_array(array(parent, "__construct"), $args);
+			$arguments = func_get_args();
+			call_user_func_array(array(parent, "__construct"), $arguments);
 
+			/* Table order
+			 */
+			$key = "tablemanager_order_".$this->table;
+			if (isset($_SESSION[$key]) == false) {
+				$_SESSION[$key] = $this->order;
+			}
+			if (in_array($_GET["order"], array_keys($this->elements))) {
+				$_SESSION[$key] = $_GET["order"];
+			}
+			$this->order = $_SESSION[$key];
+
+			/* Determine alphabetizing column
+			 */
+			if ($this->alphabetize_column === null) {
+				foreach ($this->elements as $column => $element) {
+					if (in_array($element["type"], array("varchar", "text"))) {
+						$this->alphabetize_column = $column;
+						break;
+					}
+				}
+
+				if ($this->alphabetize_column === null) {
+					$this->alphabetize_column = array_shift(array_keys($this->elements));
+				}
+			}
+
+			/* Add identifier column
+			 */
 			if (isset($this->elements["id"]) == false) {
 				$this->elements = array_merge(
-					array("id" => array(
-						"label"    => "Id",
-						"type"     => "integer",
-						"overview" => false)),
+					array(
+						"id"    => array(
+						"label" => "Id",
+						"type"  => "integer")),
 					$this->elements);
 			}
 		}
@@ -42,6 +76,9 @@
 			switch ($key) {
 				case "table": return $this->table;
 				case "elements": return $this->elements;
+				case "allow_create": return $this->allow_create;
+				case "allow_update": return $this->allow_update;
+				case "allow_delete": return $this->allow_delete;
 			}
 
 			return null;
@@ -57,25 +94,15 @@
 			foreach ($this->elements as $name => $element) {
 				switch ($element["type"]) {
 					case "boolean":
-						$item[$name] = is_true($item[$name]) ? 1 : 0;
+						$item[$name] = is_true($item[$name]) ? YES : NO;
 						break;
 					case "integer":
-						$item[$name] = (integer)$item[$name];
+						$item[$name] = (int)$item[$name];
 						break;
 				}
 			}
 
 			return $item;
-		}
-
-		/* Get item by its id
-		 *
-		 * INPUT:  int item indentifier
-		 * OUTPUT: array( string key => string value[, ...] )
-		 * ERROR:  false
-		 */
-		public function get_item($item_id) {
-			return $this->db->entry($this->table, $item_id);
 		}
 
 		/* Count all items
@@ -95,20 +122,79 @@
 
 		/* Get all items
 		 *
-		 * INPUT:  -
+		 * INPUT:  string start character | int item offset, int item count | null
 		 * OUTPUT: array( string key => string value[, ...] )
 		 * ERROR:  false
 		 */
-		public function get_items($offset, $count) {
-			if (is_array($this->order) == false) {
-				$order = "%S";
-			} else {
-				$order = implode(", ", array_fill(0, count($this->order), "%S"));
+		public function get_items() {
+			$order = $this->desc_order ? "%S desc" : "%S";
+			if (is_array($this->order)) {
+				$order = implode(", ", array_fill(0, count($this->order), $order));
 			}
 
-			$query = "select * from %S order by ".$order." limit %d,%d";
+			$args = array("id");
+			foreach ($this->elements as $column => $element) {
+				if ($element["overview"]) {
+					array_push($args, $column);
+				}
+			}
 
-			return $this->db->execute($query, $this->table, $this->order, $offset, $count);
+			$query = "select ".implode(",", array_fill(0, count($args), "%S"))." from %S";
+			array_push($args, $this->table);
+
+			switch (func_num_args()) {
+				case 0:
+					/* No browsing
+					 */
+					$query .= " order by ".$order;
+					array_push($args, $this->order);
+					break;
+				case 1:
+					/* Alphabetize
+					 */
+					list($char) = func_get_args();
+
+					if ($char == "0") {
+						$query .= " where ord(lower(substr(%S, 1, 1)))<ord(%s) or ord(lower(substr(%S, 1, 1)))>ord(%s)";
+						array_push($args, $this->alphabetize_column, "a", $this->alphabetize_column, "z");
+					} else {
+						$query .= " where %S like %s";
+						array_push($args, $this->alphabetize_column, $char."%");
+					}
+					break;
+				case 2:
+					/* Pagination
+					 */
+					list($offset, $count) = func_get_args();
+
+					$query .= " order by ".$order." limit %d,%d";
+					array_push($args, $this->order, $offset, $count);
+					break;
+				default:
+					return false;
+			}
+
+			return $this->db->execute($query, $args);
+		}
+
+		/* Get item by its id
+		 *
+		 * INPUT:  int item indentifier
+		 * OUTPUT: array( string key => string value[, ...] )
+		 * ERROR:  false
+		 */
+		public function get_item($item_id) {
+			static $cache = array();
+
+			if (isset($cache[$item_id]) == false) {
+				if (($item = $this->db->entry($this->table, $item_id)) === false) {
+					return false;
+				}
+
+				$cache[$item_id] = $item;
+			}
+
+			return $cache[$item_id];
 		}
 
 		/* Validate user input for saving
@@ -120,14 +206,28 @@
 		public function save_oke($item) {
 			$result = true;
 
+			if (isset($item["id"]) == false) {
+				if ($this->allow_create == false) {	
+					$this->output->add_message("You are not allowed to create an item.");
+					return false;
+				}
+			} else {
+				if ($this->allow_update == false) {	
+					$this->output->add_message("You are not allowed to update an item.");
+					return false;
+				}
+			}
+
 			foreach ($this->elements as $name => $element) {
-				if ($name == "id") {	
+				if (($name == "id") || $element["readonly"]) {
 					continue;
 				}
 
 				if (($element["required"]) && ($element["type"] != "boolean") && (trim($item[$name]) == "")) {
-					$this->output->add_message("The field ".$element["label"]." cannot be empty.");
-					$result = false;
+					if (($element["type"] != "blob") || (isset($item["id"]) == false)) {
+						$this->output->add_message("The field ".$element["label"]." cannot be empty.");
+						$result = false;
+					}
 				}
 				switch ($element["type"]) {
 					case "datetime":
@@ -149,6 +249,21 @@
 						}
 						break;
 				}
+
+				if ($element["unique"]) {
+					$query = "select count(*) as count from %S where %S=%s";
+					$args = array($this->table, $name, $item[$name]);
+					if (isset($item["id"])) {
+						$query .= " and id!=%d";
+						array_push($args, $item["id"]);
+					}
+					if (($current = $this->db->execute($query, $args)) == false) {
+						$this->output->add_message("Error checking item uniqueness.");
+					} else if ($current[0]["count"] > 0) {
+						$this->output->add_message($element["label"]." already exists.");
+						$result = false;
+					}
+				}
 			}
 
 			return $result;
@@ -157,10 +272,15 @@
 		/* Validate user input for deleting
 		 *
 		 * INPUT:  int item identifier
-		 * OUTPUT: boolean deletion successful
-		 * ERROR:  -
+		 * OUTPUT: true
+		 * ERROR:  false
 		 */
 		public function delete_oke($item_id) {
+			if ($this->allow_delete == false) {	
+				$this->output->add_message("You are not allowed to delete items.");
+				return false;
+			}
+
 			if (valid_input($item_id, VALIDATE_NUMBERS, VALIDATE_NONEMPTY) == false) {
 				$this->output->add_message("Invalid item id.");
 				return false;
@@ -172,11 +292,17 @@
 		/* Create item in database
 		 *
 		 * INPUT:  array( string key => string value[, ...] )
-		 * OUTPUT: boolean creating successful
-		 * ERROR:  -
+		 * OUTPUT: true
+		 * ERROR:  false
 		 */
 		public function create_item($item) {
-			$keys = array_keys($this->elements);
+			$keys = array();
+			foreach ($this->elements as $name => $element) {
+				if ($element["virtual"]) {
+					continue;
+				}
+				array_push($keys, $name);
+			}
 
 			$item = $this->fix_variables($item);
 			$item["id"] = null;
@@ -196,12 +322,20 @@
 		/* Update item in database
 		 *
 		 * INPUT:  array( string key => string value[, ...] )
-		 * OUTPUT: boolean update successful
-		 * ERROR:  -
+		 * OUTPUT: true
+		 * ERROR:  false
 		 */
 		public function update_item($item) {
-			$keys = array_keys($this->elements);
-			array_shift($keys);
+			$keys = array();
+			foreach ($this->elements as $name => $element) {
+				if (($name == "id") || $element["readonly"] || $element["virtual"]) {
+					continue;
+				}
+				if (($element["type"] == "blob") && (isset($item[$name]) == false)) {
+					continue;
+				}
+				array_push($keys, $name);
+			}
 
 			$item = $this->fix_variables($item);
 
@@ -220,8 +354,8 @@
 		/* Delete item from database
 		 *
 		 * INPUT:  int item identifier
-		 * OUTPUT: boolean deletion successful
-		 * ERROR:  -
+		 * OUTPUT: true
+		 * ERROR:  false
 		 */
 		public function delete_item($item_id) {
 			return $this->db->delete($this->table, $item_id);
@@ -230,11 +364,13 @@
 		/* Check class settings
 		 *
 		 * INPUT:  -
-		 * OUTPUT: boolean class settings oke
-		 * ERROR:  -
+		 * OUTPUT: true
+		 * ERROR:  false
 		 */
 		public function class_settings_oke() {
 			$class_oke = true;
+
+			$ckeditors = 0;
 
 			if ($this->table == null) {
 				print "Table not set in ".get_class($this)."\n";
@@ -243,17 +379,19 @@
 			if (is_array($this->elements) == false) {
 				print "Elements not set in ".get_class($this)."\n";
 				$class_oke = false;
-			} else foreach ($this->elements as $name => $element) {
+			} else foreach ($this->elements as $name => &$element) {
 				if (is_int($name)) {
 					print "Numeric element names are not allowed in ".get_class($this)."\n";
 					$class_oke = false;
 				}
+
 				if (isset($element["label"]) == false) {
 					print "Label in element '".$name."' not set in ".get_class($this)."\n";
 					$class_oke = false;
 				}
+
 				if (in_array($element["type"], $this->valid_types) == false) {
-					print "Type in element '".$name."' not set in ".get_class($this)."\n";
+					print "Unknown type in element '".$name."' in ".get_class($this)."\n";
 					$class_oke = false;
 				}
 				switch ($element["type"]) {
@@ -269,7 +407,27 @@
 							$class_oke = false;
 						}
 						break;
+					case "ckeditor":
+						if (++$ckeditor > 1) {
+							print "More than one element of type 'ckeditor' in ".get_class($this).".\n";
+							$class_oke = false;
+						}
+						break;
 				}
+
+				$defaults = array(
+					"overview" => false,
+					"required" => false,
+					"unique"   => false,
+					"readonly" => false,
+					"virtual"  => false);
+				foreach ($defaults as $key => $value) {
+					if (isset($element[$key]) == false) {
+						$element[$key] = $value;
+					}
+				}
+
+				unset($element);
 			}
 
 			return $class_oke;

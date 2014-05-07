@@ -32,6 +32,7 @@
 
 		$queries = array(
 			array("delete from host_statistics where hostname_id in (select id from hostnames where hostname=%s)", $hostname),
+			array("delete from cgi_statistics where hostname_id in (select id from hostnames where hostname=%s)", $hostname),
 			array("delete from hostnames where hostname=%s", $hostname));
 
 		$db->transaction($queries);

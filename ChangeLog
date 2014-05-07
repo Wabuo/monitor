@@ -1,3 +1,15 @@
+monitor (0.7) stable; urgency=low
+
+  * Graph layout adepts to amount of monitor days.
+  * Added CGI statistics module.
+  * Dropped support for request monitoring.
+  * Support for Prowl notifications.
+  * Improved menu library.
+  * Account activity overview added to profile module.
+  * Small improvements.
+
+ -- Hugo Leisink <hugo@leisink.net>  Wed, 23 Apr 2014 21:10:07 +0200
+
 monitor (0.6) stable; urgency=low
 
   * Host statistics module made faster.

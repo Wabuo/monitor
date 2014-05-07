@@ -48,7 +48,10 @@
 		<xsl:apply-templates select="/output/content" />
 	</div>
 	<div class="footer">
-		Built upon the <a href="http://www.banshee-php.org/" target="_blank">Banshee PHP framework</a> v<xsl:value-of select="/output/banshee_version" /> &#160;&#8226;&#160; Design by <a href="http://www.freecsstemplates.org/" target="_blank">Free CSS Templates</a>
+		<span>Built upon the <a href="http://www.banshee-php.org/" target="_blank">Banshee PHP framework</a> v<xsl:value-of select="/output/banshee_version" /></span>
+		<span>Logged in as <a href="/profile"><xsl:value-of select="/output/user" /></a></span>
+		<span><a href="/session">Session manager</a></span>
+		<span>Design by <a href="http://www.freecsstemplates.org/" target="_blank">Free CSS Templates</a></span>
 	</div>
 </div>
 <xsl:apply-templates select="/output/internal_errors" />

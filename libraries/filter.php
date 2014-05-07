@@ -21,11 +21,7 @@
 			return null;
 		}
 
-		public function to_output($type, $browser_version = false) {
-			if (in_array($type, array("requests", "host_statistics")) == false) {
-				return false;
-			}
-
+		public function to_output($table, $browser_version = false) {
 			if (is_array($_SESSION["filter"]) == false) {
 				$_SESSION["filter"] = array(
 					"webserver"       => 0,
@@ -56,8 +52,8 @@
 
 			/* Webserver filter
 			 */
-			$query = "select * from webservers order by name";
-			if (($webservers = $this->db->execute($query)) != false) {
+			$query = "select * from webservers where active=%d order by name";
+			if (($webservers = $this->db->execute($query, YES)) != false) {
 				$this->output->open_tag("webservers");
 				array_unshift($webservers, array("id" => 0, "name" => "All"));
 				foreach ($webservers as $webserver) {
@@ -71,19 +67,13 @@
 			/* Hostname filter
 			 */
 			if ($_SESSION["filter"]["webserver"] == 0) {
-				if ($type == "requests") {
-					$query = "select * from hostnames where visible=1 and id in ".
-					         "(select distinct hostname_id from requests) ".
-					         "order by hostname";
-				} else {
-					$query = "select * from hostnames where visible=1 order by hostname";
-				}
-				$args = array();
+				$query = "select * from hostnames where visible=%d order by hostname";
+				$args = array(YES);
 			} else {
-				$query = "select * from hostnames where visible=1 and id in ".
-						 "(select distinct hostname_id from ".$type." where webserver_id=%d) ".
+				$query = "select * from hostnames where visible=%d and id in ".
+						 "(select distinct hostname_id from %S where webserver_id=%d) ".
 						 "order by hostname";
-				$args = array($_SESSION["filter"]["webserver"]);
+				$args = array(YES, $table, $_SESSION["filter"]["webserver"]);
 			}
 			if (($hostnames = $this->db->execute($query, $args)) != false) {
 				$this->output->open_tag("hostnames");

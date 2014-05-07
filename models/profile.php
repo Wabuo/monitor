@@ -60,7 +60,7 @@
 		public function update_profile($profile) {
 			$profile["status"] = USER_STATUS_ACTIVE;
 
-			$keys = array("email");
+			$keys = array("email", "prowl_key");
 			if ($profile["password"] != "") {
 				array_push($keys, "password");
 				array_push($keys, "status");

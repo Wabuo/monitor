@@ -25,7 +25,8 @@
 
 	/* Hiawatha Monitor settings
 	 */
-	define("MONITOR_DAYS", 31);
+	define("GRAPH_HEIGHT", 150);
+	define("MONITOR_DAYS", 50);
 
 	/* Pre-defined validation strings for valid_input()
 	 */

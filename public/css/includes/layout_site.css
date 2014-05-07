@@ -4,6 +4,11 @@
  */
 @import url(/css/includes/banshee.css);
 
+* {
+	margin:0;
+	padding:0;
+}
+
 body {
 	margin:0;
 	padding:0;
@@ -14,21 +19,23 @@ body {
 	color:#696969;
 }
 
-h1, h2, h3 {
-	margin-top:0;
-}
-
 h1 {
 	font-size:22px;
+	margin-bottom:10px;
 }
 
 h2 {
 	font-size:16px;
 	font-weight:normal;
+	margin-bottom:5px;
 }
 
 h3 {
 	font-size:14px;
+}
+
+p {
+	margin-bottom:10px;
 }
 
 a {
@@ -83,6 +90,7 @@ div.wrapper {
 div.header {
 	height:100px;
 }
+
 div.header div.title {
 	padding-top:40px;
 	font-size:40px;
@@ -102,60 +110,26 @@ div.topbar {
 /* Menu
  */
 div.menu {
-	position:absolute;
-	top:130px;
-	z-index:100;
-}
-div.menu:hover div.menu-content {
-	display:block;
+	padding:13px 0 0 30px;
 }
 
-div.menu div.menu-trigger {
-	margin:0 50px 0 20px;
-	cursor:pointer;
-	text-transform:uppercase;
-	width:40px;
-	height:15px;
-}
-div.menu div.menu-trigger a {
-	color:#000000;
+div.menu ul li {
+	display:inline;
 }
 
-div.menu div.menu-content {
-	position:absolute;
-	display:none;
-	overflow:hidden;
-	border:2px solid #000000;
-	background-color:#404040;
-	padding:25px;
-	width:730px;
-	margin-left:10px;
-	opacity:0.9;
-}
-
-div.menu:hover {
-	display:block;
-}
-
-div.menu div.section {
-	float:left;
-	margin-right:50px;
-}
-
-div.menu div.section div.title  {
+div.menu ul li:after {
+	content:"|";
 	color:#ffffff;
-	font-weight:bold;
-	margin-bottom:3px;
+	margin:0 20px;
+}
 
+div.menu ul li:last-child:after {
+	content:none;
 }
-div.menu div.section a {
-	color:#c0c0c0;
-	display:block;
-	margin-bottom:2px;
-}
-div.menu div.section a:before {
-	content:"-";
-	margin-right:5px;
+
+div.menu ul li a {
+	color:#000000;
+	font-weight:bold;
 }
 
 /* Page
@@ -179,18 +153,26 @@ div.page div.filter span {
 /* Footer
  */
 div.footer {
-	height:50px;
-	padding:0 20px;
+	height:35px;
+	padding-top:15px;
 	background:#404040;
+	text-align:center;
 }
 
-div.footer p {
-	margin:0;
-	padding:20px 0 0 0;
+div.footer span {
 	text-align:center;
 	font-size:10px;
 	font-family:Arial, Helvetica, sans-serif;
 	color:#b0b0b0;
+}
+
+div.footer span:after {
+	content:"|";
+	padding:0 15px;
+}
+
+div.footer span:last-child:after {
+	content:none;
 }
 
 div.footer a {

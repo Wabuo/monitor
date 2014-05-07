@@ -37,38 +37,13 @@
 
 	<div class="topbar">
 	<xsl:if test="/output/menu">
+		<div class="menu"><ul>
+		<xsl:for-each select="/output/menu/item">
+			<li><a href="{link}"><xsl:value-of select="text" /></a></li>
+		</xsl:for-each>
+		</ul></div>
 	</xsl:if>
 	</div>
-
-	<xsl:if test="/output/menu">
-	<div class="menu">
-	<div class="menu-trigger"><a href="" onClick="javascript:return false">Menu</a></div>
-	<div class="menu-content">
-	<xsl:for-each select="/output/menu/item">
-		<div class="section">
-			<xsl:choose>
-				<xsl:when test="link=''">
-					<xsl:if test="menu/item">
-						<div class="title"><xsl:value-of select="text" /></div>
-					</xsl:if>
-				</xsl:when>
-				<xsl:otherwise>
-					<div class="link"><a href="{link}"><xsl:value-of select="text" /></a></div>
-				</xsl:otherwise>
-			</xsl:choose>
-			<xsl:if test="menu/item">
-				<div class="submenu">
-				<xsl:for-each select="menu/item">
-					<div class="link"><a href="{link}"><xsl:value-of select="text" /></a></div>
-				</xsl:for-each>
-				</div>
-			</xsl:if>
-		</div>
-	</xsl:for-each>
-	<br clear="both" />
-	</div>
-	</div>
-	</xsl:if>
 
 	<div class="page">
 		<xsl:apply-templates select="/output/system_messages" />
@@ -76,7 +51,15 @@
 	</div>
 
 	<div class="footer">
-		<p class="copyright">Hiawatha Monitor v<xsl:value-of select="/output/monitor_version" /> &#160;&#8226;&#160; Built upon the <a href="http://www.banshee-php.org/" target="_blank">Banshee PHP framework</a> v<xsl:value-of select="/output/banshee_version" /> &#160;&#8226;&#160; Design by <a href="http://www.freecsstemplates.org/" target="_blank">Free CSS Templates</a></p>
+		<span>Hiawatha Monitor v<xsl:value-of select="/output/monitor_version" /></span>
+		<xsl:if test="/output/user">
+			<span>Logged in as <a href="/profile"><xsl:value-of select="/output/user" /></a></span>
+			<span><a href="/session">Session manager</a></span>
+		</xsl:if>
+		<span>Built upon the <a href="http://www.banshee-php.org/" target="_blank">Banshee PHP framework</a></span>
+		<xsl:if test="/output/user/@admin='yes'">
+			<span><a href="/admin">CMS</a></span>
+		</xsl:if>
 	</div>
 </div>
 <xsl:apply-templates select="/output/internal_errors" />

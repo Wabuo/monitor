@@ -1,20 +1,23 @@
 <?php
-	/* libraries/oo/tablemanager_controller.php
+	/* libraries/tablemanager_controller.php
 	 *
 	 * Copyright (C) by Hugo Leisink <hugo@leisink.net>
 	 * This file is part of the Banshee PHP framework
 	 * http://www.banshee-php.org/
 	 */
 
-	class tablemanager_controller extends controller {
+	abstract class tablemanager_controller extends controller {
 		protected $name = "Table";
 		protected $pathinfo_offset = 1;
 		protected $back = null;
 		protected $icon = null;
 		protected $page_size = 25;
 		protected $pagination_links = 7;
-		protected $pagination_step = 1;
+		protected $pagination_step = 7;
 		protected $foreign_null = "---";
+		protected $log_column = null;
+		protected $browsing = "pagination";
+		private   $table_class = "list";
 
 		/* Show overview
 		 *
@@ -23,24 +26,52 @@
 		 * ERROR:  -
 		 */
 		protected function show_overview() {
-			if (($item_count = $this->model->count_items()) === false) {
-				$this->output->add_tag("result", "Error while counting items.");
+			switch ($this->browsing) {
+				case "alphabetize":
+					$alphabet = new alphabetize($this->output, "tableadmin_".$this->model->table);
+
+					if (($items = $this->model->get_items($alphabet->char)) === false) {
+						$this->output->add_tag("result", "Error while creating overview.");
+						return;
+					}
+					break;
+				case "pagination":
+					if (($item_count = $this->model->count_items()) === false) {
+						$this->output->add_tag("result", "Error while counting items.");
+						return;
+					}
+
+					$paging = new pagination($this->output, "tableadmin_".$this->model->table, $this->page_size, $item_count);
+
+					if (($items = $this->model->get_items($paging->offset, $paging->size)) === false) {
+						$this->output->add_tag("result", "Error while creating overview.");
+						return;
+					}
+					break;
+				case "datatables":
+					$this->output->add_javascript("jquery/jquery.js");
+					$this->output->add_javascript("banshee/jquery.datatables.js");
+					$this->output->run_javascript("$(document).ready(function(){ $('table.datatable').dataTable(); });");
+					$this->output->add_css("banshee/datatables.css");
+					$this->table_class = "datatable";
+				default:
+					if (($items = $this->model->get_items()) === false) {
+						$this->output->add_tag("result", "Error while creating overview.");
+						return;
+					}
 			}
 
-			$paging = new pagination($this->output, "tableadmin_".$this->model->table, $this->page_size, $item_count);
-
-			if (($items = $this->model->get_items($paging->offset, $paging->size)) === false) {
-				$this->output->add_tag("result", "Error while creating overview.");
-			}
-
-			$this->output->open_tag("overview");
+			$params = array(
+				"class"        => $this->table_class,
+				"allow_create" => show_boolean($this->model->allow_create));
+			$this->output->open_tag("overview", $params);
 
 			/* Labels
 			 */
 			$this->output->open_tag("labels", array("name" => strtolower($this->name)));
 			foreach ($this->model->elements as $name => $element) {
 				$args = array(
-					"name" => $name,
+					"name"     => $name,
 					"overview" => show_boolean($element["overview"]));
 				if ($element["overview"]) {
 					$this->output->add_tag("label", $element["label"], $args);
@@ -60,11 +91,22 @@
 							case "boolean":
 								$value = show_boolean($value);
 								break;
+							case "datetime":
+								$value = date("j M Y, H:i:s", strtotime($value));
+								break;
 							case "foreignkey":
 								if ($value === null) {
 									$value = $this->foreign_null;
 								} else if (($result = $this->db->entry($element["table"], $value)) != false) {
-									$value = $result[$element["column"]];
+									if (is_array($element["column"]) == false) {
+										$value = $result[$element["column"]];
+									} else {
+										$values = array();
+										foreach ($element["column"] as $column) {
+											array_push($values, $result[$column]);
+										}
+										$value = implode(" ", $values);
+									}
 								}
 								break;
 						}
@@ -75,7 +117,14 @@
 			}
 			$this->output->close_tag();
 
-			$paging->show_browse_links($this->pagination_links, $this->pagination_step);
+			switch ($this->browsing) {
+				case "alphabetize":
+					$alphabet->show_browse_links();
+					break;
+				case "pagination":
+					$paging->show_browse_links($this->pagination_links, $this->pagination_step);
+					break;
+			}
 
 			$this->output->close_tag();
 		}
@@ -88,17 +137,30 @@
 		 */
 		protected function show_item_form($item) {
 			$calendar_initialized = false;
+			$ckeditor_initialized = false;
+
+			$args = array(
+				"name"         => strtolower($this->name),
+				"allow_delete" => show_boolean($this->model->allow_delete));
+
+			if (isset($item["id"]) == false) {
+				if ($this->model->allow_create == false) {	
+					$this->show_overview();
+					return;
+				}
+			} else {
+				$args["id"] = $item["id"];
+				if ($this->model->allow_update == false) {	
+					$this->show_overview();
+					return;
+				}
+			}
 
 			$this->output->open_tag("edit");
 
-			$args = array("name" => strtolower($this->name));
-			if (isset($item["id"])) {
-				$args["id"] = $item["id"];
-			}
-
 			$this->output->open_tag("form", $args);
 			foreach ($this->model->elements as $name => $element) {
-				if ($name == "id") {
+				if (($name == "id") || $element["readonly"]) {
 					continue;
 				}
 
@@ -109,28 +171,52 @@
 				if (isset($element["label"])) {
 					$this->output->add_tag("label", $element["label"]);
 				}
-				$this->output->add_tag("value", $item[$name]);
+
+
+				if ($element["type"] == "boolean") {
+					$item[$name] = show_boolean($item[$name]);
+				}
+
+				if ($element["type"] != "blob") {
+					$this->output->add_tag("value", $item[$name]);
+				}
 
 				if ($element["type"] == "foreignkey") {
 					$element["options"] = array();
 					if ($element["required"] == false) {
 						$element["options"][null] = $this->foreign_null;
 					}
-					$query = "select id,%S from %S order by %S";
-					$col = $element["column"];
-					if (($options = $this->db->execute($query, $col, $element["table"], $col)) != false) {
+					if (is_array($element["column"]) == false) {
+						$cols = array($element["column"]);
+					} else {
+						$cols = $element["column"];
+					}
+					$qcols = implode(",", array_fill(1, count($cols), "%S"));
+
+					$query = "select id,".$qcols." from %S order by ".$qcols;
+					if (($options = $this->db->execute($query, $cols, $element["table"], $cols)) != false) {
 						foreach ($options as $option) {
-							$element["options"][$option["id"]] = $option[$col];
+							$values = array();
+							foreach ($cols as $col) {
+								array_push($values, $option[$col]);
+							}
+							$element["options"][$option["id"]] = implode(" ", $values);
 						}
 					}
 				}
 
 				if (($element["type"] == "datetime") && ($calendar_initialized == false)) {
-					$this->output->add_css("includes/calendar.css");
-					$this->output->add_javascript("calendar.js");
-					$this->output->add_javascript("calendar-en.js");
-					$this->output->add_javascript("calendar-setup.js");
+					$this->output->add_css("banshee/calendar.css");
+					$this->output->add_javascript("banshee/calendar.js");
+					$this->output->add_javascript("banshee/calendar-en.js");
+					$this->output->add_javascript("banshee/calendar-setup.js");
 					$calendar_initialized = true;
+				}
+
+				if (($element["type"] == "ckeditor") && ($ckeditor_initialized == false)) {
+					$this->output->add_javascript("ckeditor/ckeditor.js");
+					$this->output->add_javascript("banshee/start_ckeditor.js");
+					$ckeditor_initialized = true;
 				}
 
 				if (($element["type"] == "enum") || ($element["type"] == "foreignkey")) {
@@ -158,6 +244,16 @@
 			$item = strtolower($this->name);
 
 			if ($_POST["submit_button"] == "Save ".$item) {
+				/* Add file upload to $_POST
+				 */
+				foreach ($this->model->elements as $name => $element) {
+					if (($element["type"] == "blob") && isset($_FILES[$name])) {
+						if ($_FILES[$name]["error"] == 0) {
+							$_POST[$name] = file_get_contents($_FILES[$name]["tmp_name"]);
+						}
+					}
+				}
+
 				/* Save item
 				 */
 				if ($this->model->save_oke($_POST) == false) {
@@ -169,43 +265,63 @@
 						$this->output->add_message("Error while creating ".$item.".");
 						$this->show_item_form($_POST);
 					} else {
-						$this->user->log_action($this->name." ".$this->db->last_insert_id." created");
+						$name = $this->db->last_insert_id;
+						if ($this->log_column != null) {
+							$name .= ":".$_POST[$this->log_column];
+						}
+						$this->user->log_action("%s %S created", strtolower($this->name), $name);
+
 						$this->show_overview();
 					}
 				} else {
-					/* Update item 
+					/* Update item
 					 */
 					if ($this->model->update_item($_POST) === false) {
 						$this->output->add_message("Error while updating ".$item.".");
 						$this->show_item_form($_POST);
 					} else {
-						$this->user->log_action($this->name." ".$_POST["id"]." updated");
+						$name = $_POST["id"];
+						if ($this->log_column != null) {
+							$name .= ":".$_POST[$this->log_column];
+						}
+						$this->user->log_action("%s %s updated", strtolower($this->name), $name);
+
 						$this->show_overview();
 					}
 				}
 			} else if ($_POST["submit_button"] == "Delete ".$item) {
-				/* Delete item 
+				/* Delete item
 				 */
 				if ($this->model->delete_oke($_POST["id"]) == false) {
 					$this->show_item_form($_POST);
 				} else if ($this->model->delete_item($_POST["id"]) === false) {
-					$this->output->add_tag("result", "Error while deleting ".$item.".");
+					$this->output->add_message("Error while deleting ".$item.".");
+					$this->show_item_form($_POST);
 				} else {
-					$this->user->log_action($this->name." ".$_POST["id"]." deleted");
+					$name = $_POST["id"];
+					if ($this->log_column != null) {
+						if (($item = $this->model->get_item($_POST["id"])) != false) {
+							$name .= ":".$item[$this->log_column];
+						}
+					}
+					$this->user->log_action("%s %s deleted", strtolower($this->name), $name);
+
 					$this->show_overview();
 				}
 			} else {
-				$this->output->add_tag("result", "Huh?");
+				$this->show_overview();
 			}
 		}
 
 		/* Main function
 		 *
 		 * INPUT:  -
-		 * OUTPUT: boolean execution successful
-		 * ERROR:  -
+		 * OUTPUT: true
+		 * ERROR:  false
 		 */
 		public function execute() {
+			$this->output->title = $this->name." administration";
+
 			if (is_a($this->model, "tablemanager_model") == false) {
 				print "Tablemanager model has not been defined.\n";
 				return false;
@@ -219,7 +335,7 @@
 
 			/* Start
 			 */
-			$this->output->add_css("includes/tablemanager.css");
+			$this->output->add_css("banshee/tablemanager.css");
 
 			$this->output->open_tag("tablemanager");
 

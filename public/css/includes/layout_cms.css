@@ -134,6 +134,15 @@ div.footer {
 	border-bottom-right-radius:10px;
 }
 
+div.footer span:after {
+	content:"|";
+	padding:0 15px;
+}
+
+div.footer span:last-child:after {
+	content:none;
+}
+
 div.footer a {
 	color:#f0f0f0;
 	border:0;
