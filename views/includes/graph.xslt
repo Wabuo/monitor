@@ -40,7 +40,6 @@
 //
 //-->
 <xsl:template match="day">
-<input type="button" value="Back" class="back button" onClick="javascript:document.location='/{/output/page}'" />
 <table class="list">
 <tr>
 <xsl:if test="@hostnames='yes'">
@@ -59,6 +58,7 @@
 </tr>
 </xsl:for-each>
 </table>
+<input type="button" value="Back" class="button" onClick="javascript:document.location='/{/output/page}'" />
 </xsl:template>
 
 </xsl:stylesheet>

@@ -126,7 +126,7 @@
 			return $result;
 		}
 
-		public function readable_number($number) {
+		static public function readable_number($number) {
 			if ($number > 1000000000) {
 				return sprintf("%0.1f G", $number / 1000000000);
 			} else if ($number > 1000000) {
@@ -161,11 +161,7 @@
 				array_push($args, $filter_webserver);
 			}
 
-			if ($this->hostnames) {
-				$query .= "group by hostname_id ";
-			}
-
-			$query .= "order by count desc";
+			$query .= "group by ".($this->hostnames ? "hostname_id" : "w.name")." order by count desc";
 
 			return $this->db->execute($query, $args);
 		}

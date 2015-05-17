@@ -31,6 +31,8 @@
 		}
 
 		public function profile_oke($profile) {
+			global $notification_methods;
+
 			$result = true;
 
 			if (is_false($profile["password_hashed"])) {
@@ -54,13 +56,21 @@
 				$result = false;
 			}
 
+			if (in_array($profile["notification_method"], array_keys($notification_methods)) == false) {
+				$this->output->add_message("Invalid notification method.");
+				$result = false;
+			} else if (($profile["notification_method"] != "none") && ($profile["notification_key"] == "")) {
+				$this->output->add_message("Specify a notification key.");
+				$result = false;
+			}
+
 			return $result;
 		}
 
 		public function update_profile($profile) {
 			$profile["status"] = USER_STATUS_ACTIVE;
 
-			$keys = array("email", "prowl_key");
+			$keys = array("email", "notification_key", "notification_method", "daily_report");
 			if ($profile["password"] != "") {
 				array_push($keys, "password");
 				array_push($keys, "status");
@@ -68,6 +78,7 @@
 					$profile["password"]  = md5($profile["password"]);
 				}
 			}
+			$profile["daily_report"] = is_true($profile["daily_report"]) ? YES : NO;
 
 			return $this->db->update("users", $this->user->id, $profile, $keys);
 		}

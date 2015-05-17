@@ -7,10 +7,6 @@
 				return;
 			}
 
-			if (($status = $this->model->get_webserver_status()) === false) {
-				return;
-			}
-
 			$webservers_offline = false;
 
 			foreach ($webservers as $webserver) {
@@ -22,9 +18,10 @@
 				$webserver["address"] .= "/";
 
 				if ($webserver["active"]) {
-					if (isset($status[$webserver["id"]]) == false) {
-						$webserver["status"] = "unknown";
-					} else if (($webserver["status"] = $status[$webserver["id"]]) == "offline") {
+					if ($webserver["errors"] == 0) {
+						$webserver["status"] = "online";
+					} else {
+						$webserver["status"] = "offline";
 						$webservers_offline = true;
 					}
 				}
@@ -36,7 +33,7 @@
 			}
 
 			if ($webservers_offline) {
-				$this->output->add_system_message("Warning, one or more webservers are offline!");
+				$this->output->add_system_message("Warning, one or more webservers are unavailable!");
 			}
 
 			/* Alerts

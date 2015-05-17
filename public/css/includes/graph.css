@@ -60,14 +60,9 @@ fieldset.statistics div.graph div.bar div.weekend_yes {
 
 /* Day statistics
  */
-input.back {
-	position:absolute;
-	right:30px;
-	top:20px;
-}
-
 table.list {
 	width:100%;
+	margin-bottom:15px;
 }
 
 table.list th.webserver {

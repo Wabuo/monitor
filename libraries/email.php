@@ -13,9 +13,13 @@
 		protected $from = null;
 		protected $reply_to = null;
 		protected $subject = null;
-		protected $messages = array();
+		protected $text_message = null;
+		protected $html_message = null;
 		protected $attachments = array();
+		protected $images = array();
 		protected $sender_address = null;
+		protected $message_fields = array();
+		protected $field_format = "[%s]";
 
 		/* Constructor
 		 *
@@ -40,6 +44,13 @@
 		* ERROR:  -
 		*/
 		public static function valid_address($email) {
+			$forbidden = array("mailinator.com");
+
+			list(, $domain) = explode("@", $email, 2);
+			if (in_array($domain, $forbidden)) {
+				return false;
+			}
+
 			return preg_match("/^[0-9A-Za-z]([-_.~]?[0-9A-Za-z])*@[0-9A-Za-z]([-.]?[0-9A-Za-z])*\\.[A-Za-z]{2,4}$/", $email) === 1;
 		}
 
@@ -52,7 +63,7 @@
 		protected function make_address($address, $name) {
 			$address = strtolower($address);
 
-			if ($name === null) {
+			if ($name == null) {
 				return $address;
 			}
 
@@ -147,22 +158,28 @@
 		 * OUTPUT: -
 		 * ERROR:  -
 		 */
-		public function message($message, $content_type = null) {
+		public function message($message) {
 			$message = str_replace("\r\n", "\n", $message);
+
+			if ((substr($message, 0, 6) == "<body>") && (substr(rtrim($message), -7) == "</body>")) {
+				$message = "<html>\n".rtrim($message)."\n</html>";
+			}
 
 			/* Determine message mimetype
 			 */
-			if ($content_type === null) {
-				if ((substr($message, 0, 6) == "<html>") && (substr(rtrim($message), -7) == "</html>")) {
-					$content_type = "text/html";
-				} else {
-					$content_type = "text/plain";
+			if ((substr($message, 0, 6) == "<html>") && (substr(rtrim($message), -7) == "</html>")) {
+				$this->html_message = $message;
+				if ($this->text_message === null) {
+					$message = str_replace("\n", "", $message);
+					$message = str_replace("<br>", "<br>\n", $message);
+					$message = str_replace("</p>", "</p>\n\n", $message);
+					$message = str_replace("<div", "\n<div", $message);
+					$message = preg_replace('/<head>.*<\/head>/', "", $message);
+					$this->text_message = strip_tags($message);
 				}
+			} else {
+				$this->text_message = $message;
 			}
-
-			array_push($this->messages, array(
-				"message"      => $message,
-				"content_type" => $content_type));
 		}
 
 		/* Add e-mail attachment
@@ -178,7 +195,7 @@
 				if (file_exists($filename) == false) {
 					return false;
 				}
-				if (($content = file_get_contents($filename, FILE_BINARY)) == false) {	
+				if (($content = file_get_contents($filename, FILE_BINARY)) == false) {
 					return false;
 				}
 				$content_type = mime_content_type($filename);
@@ -203,6 +220,131 @@
 			return true;
 		}
 
+		/* Add inline image
+		 *
+		 * INPUT:  string filename
+		 * OUTPUT: string content ID
+		 * ERROR:  false
+		 */
+		public function add_image($filename) {
+			if (file_exists($filename) == false) {
+				return false;
+			}
+			if (($content = file_get_contents($filename, FILE_BINARY)) == false) {
+				return false;
+			}
+
+			$content_type = mime_content_type($filename);
+			$content_id = md5($image["content"]);
+
+			/* Add attachment
+			 */
+			array_push($this->images, array(
+				"content"      => $content,
+				"content_type" => $content_type,
+				"content_id"   => $content_id));
+
+			return $content_id;
+		}
+
+		/* Set field values for message
+		 *
+		 * INPUT:  array fields
+		 * OUPTUT: true
+		 * ERROR:  false
+		 */
+		public function set_message_fields($data = null) {
+			if ($data === null) {
+				$data = array();
+			} else if (is_array($data) == false) {
+				return false;
+			}
+
+			$this->message_fields = array();
+			foreach ($data as $key => $value) {
+				$key = sprintf($this->field_format, $key);
+				$this->message_fields[$key] = $value;
+			}
+
+			return true;
+		}
+
+		/* Populate fields in message
+		 *
+		 * INPUT:  string message
+		 * OUTPUT: string message
+		 * ERROR:  -
+		 */
+		private function populate_message_fields($message) {
+			foreach ($this->message_fields as $key => $value) {
+				$message = str_replace($key, $value, $message);
+			}
+
+			return $message;
+		}
+
+		/* Generate e-mail message block
+		 *
+		 * INPUT:  string boundary, string content-type, string message
+		 * OUTPUT: string body block
+		 * ERROR:  -
+		 */
+		private function message_block($boundary, $content_type, $message) {
+			$message = $this->populate_message_fields($message);
+			$format =
+				"--%s\n".
+				"Content-Type: %s\n".
+				"Content-Transfer-Encoding: 7bit\n\n".
+				"%s\n\n";
+
+			return sprintf($format, $boundary, $content_type, $message);
+		}
+
+		/* Convert HTML message and inline images to message body
+		 *
+		 * INPUT:  string boundary
+		 * OUTPUT: string body block
+		 * ERROR:  -
+		 */
+		private function html_message($boundary) {
+			$message = "";
+			$image_count = count($this->images);
+
+			/* Create multipart/related block
+			 */
+			if ($image_count > 0) {
+				$message .= "--".$boundary."\n";
+				$boundary = substr(md5($boundary), 0, 20);
+				$message .= "Content-Type: multipart/related; boundary=".$boundary."\n\n";
+			}
+
+			/* Add HTML message
+			 */
+			$message .= $this->message_block($boundary, "text/html", $this->html_message);
+
+			/* Add inline images
+			 */
+			if ($image_count > 0) {
+				$format =
+					"--%s\n".
+					"Content-Disposition: inline\n".
+					"Content-Type: %s\n".
+					"Content-ID: <%s>\n".
+					"Content-Transfer-Encoding: base64\n\n".
+					"%s\n\n";
+
+				foreach ($this->images as $image) {
+					$content = base64_encode($image["content"]);
+					$content = wordwrap($content, 70, "\n", true);
+					$message .= sprintf($format, $boundary, $image["content_type"], $image["content_id"], $content);
+				}
+
+				$message .= "--".$boundary."--\n\n";
+			}
+
+			return $message;
+		}
+
 		/* Send e-mail
 		 *
 		 * INPUT:  [string e-mail address recipient][, string name recipient]
@@ -220,11 +362,10 @@
 				return false;
 			}
 
-			if (count($this->messages) == 0) {
+			if (count($this->text_message) === null) {
 				$this->message("");
 			}
 
-			$message_count = count($this->messages);
 			$attachment_count = count($this->attachments);
 			$email_boundary = substr(md5(time()), 0, 20);
 
@@ -233,23 +374,18 @@
 			if ($attachment_count == 0) {
 				/* No attachments
 				 */
-				if ($message_count == 1) {
+				if ($this->html_message === null) {
 					/* One message
 					 */
-					$headers = array("Content-Type: ".$this->messages[0]["content_type"]);
-					$message = $this->messages[0]["message"];
+					$headers = array("Content-Type: text/plain");
+					$message = $this->populate_message_fields($this->text_message);
 				} else {
 					/* Multiple messages
 					 */
 					$headers = array("Content-Type: multipart/alternative; boundary=".$email_boundary);
 					$message = "This is a multi-part message in MIME format.\n";
-					foreach ($this->messages as $mesg) {
-						$message .=
-							"--".$email_boundary."\n".
-							"Content-Type: ".$mesg["content_type"]."\n".
-							"Content-Transfer-Encoding: 7bit\n\n".
-							$mesg["message"]."\n\n";
-					}
+					$message .= $this->message_block($email_boundary, "text/plain", $this->text_message);
+					$message .= $this->html_message($email_boundary);
 				}
 			} else {
 				/* With attachments
@@ -257,47 +393,41 @@
 				$headers = array("Content-Type: multipart/mixed; boundary=".$email_boundary);
 				$message = "This is a multi-part message in MIME format.\n";
 
-				if ($message_count == 1) {
+				if ($this->html_message === null) {
 					/* One message
 					 */
-					$message .=
-						"--".$email_boundary."\n".
-						"Content-Type: ".$this->messages[0]["content_type"]."\n".
-						"Content-Transfer-Encoding: 7bit\n\n".
-						$this->messages[0]["message"]."\n\n";
+					$message .= $this->message_block($email_boundary, "text/plain", $this->text_message);
 				} else {
 					/* Multiple messages
 					 */
 					$message_boundary = substr(md5($email_boundary), 0, 20);
 					$message .= "--".$email_boundary."\n".
 						"Content-Type: multipart/alternative; boundary=".$message_boundary."\n\n";
-					foreach ($this->messages as $mesg) {
-						$message .=
-							"--".$message_boundary."\n".
-							"Content-Type: ".$mesg["content_type"]."\n".
-							"Content-Transfer-Encoding: 7bit\n\n".
-							$mesg["message"]."\n\n";
-					}
+					$message .= $this->message_block($message_boundary, "text/plain", $this->text_message);
+					$message .= $this->html_message($message_boundary);
 					$message .= "--".$message_boundary."--\n\n";
 				}
 
 				/* Add attachments
 				 */
+				$format .= 
+					"--%s\n".
+					"Content-Disposition: attachment;\n".
+					"\tfilename=\"%s\"\n".
+					"Content-Type: %s;\n".
+					"\tname=\"%s\"\n".
+					"Content-Transfer-Encoding: base64\n\n".
+					"%s\n\n";
+
 				foreach ($this->attachments as $attachment) {
 					$content = base64_encode($attachment["content"]);
 					$content = wordwrap($content, 70, "\n", true);
-					$message .=
-						"--".$email_boundary."\n".
-						"Content-Disposition: attachment;\n".
-						"\tfilename=\"".$attachment["filename"]."\"\n".
-						"Content-Type: ".$attachment["content_type"].";\n".
-						"\tname=\"".$attachment["filename"]."\"\n".
-						"Content-Transfer-Encoding: base64\n\n".
-						$content."\n\n";
+					$message .= sprintf($format, $email_boundary, $attachment["filename"],
+						$attachment["content_type"], $attachment["filename"], $content);
 				}
 			}
 
-			if (($message_count > 1) || ($attachment_count > 0)) {
+			if (($this->html_message !== null) || ($attachment_count > 0)) {
 				$message .= "--".$email_boundary."--\n";
 			}
 
@@ -316,13 +446,13 @@
 
 			/* Carbon Copies
 			 */
-			if (count($this->cc) > 0) {	
+			if (count($this->cc) > 0) {
 				array_push($headers, "CC: ".implode(", ", $this->cc));
 			}
 
 			/* Blind Carbon Copies
 			 */
-			if (count($this->bcc) > 0) {	
+			if (count($this->bcc) > 0) {
 				array_push($headers, "BCC: ".implode(", ", $this->bcc));
 			}
 
@@ -339,6 +469,8 @@
 			if (mail(implode(", ", $this->to), $this->subject, $message, implode("\n", $headers), $sender) == false) {
 				return false;
 			}
+
+			unset($message);
 
 			$this->to = array();
 			$this->cc = array();

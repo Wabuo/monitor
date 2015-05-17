@@ -1,0 +1,82 @@
+<html>
+
+<head>
+<style type="text/css">
+	body {
+		font-family:courier-sans;
+		background-color:#c0c0c0;
+		font-size:9pt;
+		padding:20px 0 20px 0;
+	}
+	div.container {
+		max-width:550px;
+		background-color:#ffffff;
+		box-shadow:15px 10px 5px #606060;
+		padding:30px 40px;
+		margin:0 auto;
+	}
+	p {
+		margin:20px 0 0 0;
+	}
+	h1 {
+		font-size:16pt;
+		color:#1010c0;
+		margin:0;
+	}
+	h2 {
+		font-size:14pt;
+		color:#6060ff;
+		padding-bottom:5px;
+		margin-bottom:0;
+		border-bottom:1px dashed #ff8000;
+	}
+	h3 {
+		font-size:12pt;
+		margin-bottom:0;
+	}
+	table {
+		font-size:inherit;
+	}
+	table th {
+		background-color:#c0c0ff;
+		padding:0 5px;
+	}
+	table th:first-child {
+		text-align:left;
+	}
+	table td {
+		background-color:#e0e0ff;
+		padding:0 5px;
+	}
+	table td.alert_medium {
+		color:#ff8000;
+	}
+	table td.alert_high {
+		color:#ff0000;
+	}
+	table.stats td:first-child {
+		width:200px;
+	}
+	table.stats td:nth-child(n+2) {
+		width:75px;
+		text-align:right;
+	}
+	table.events th:first-child {
+		width:75px;
+	}
+	table.events th:nth-child(2) {
+		width:375px;
+	}
+</style>
+</head>
+
+<body>
+<div class="container">
+<h1>Daily Hiawatha Monitor report</h1>
+<p>Alerts in this report for: [ALERTS]</p>
+[CONTENT]
+<p>The average is calculated over the last [HISTORY] days. This report was generated at [TIMESTAMP].</p>
+</div>
+</body>
+
+</html>

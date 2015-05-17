@@ -1,6 +1,11 @@
-input.text {
+table.edit {
+	margin-bottom:10px;
+}
+
+input.text, select.text {
 	width:300px;
 }
+
 input.button {
 	margin-right:10px;
 }

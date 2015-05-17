@@ -1,0 +1,238 @@
+#!/usr/bin/php
+<?php
+	define("HISTORY_DAYS",  15);
+	define("ALERT_MEDIUM", 100);
+	define("ALERT_HIGH",   200);
+
+	chdir(dirname($argv[0]));
+	require("../libraries/configuration.php");
+	require("../libraries/security.php");
+
+	/* Dummy user class
+	 */
+	class dummy_user {
+		private $id = null;
+
+		public function __construct($user_id) {
+			$this->id = $user_id;
+		}
+
+		public function __get($key) {
+			switch ($key) {
+				case "id": return $this->id;
+			}
+
+			return null;
+		}
+	}
+
+	/* Model class
+	 */
+	class stats_model extends graph_model {
+		public function __construct($db, $user, $table, $columns, $hostnames) {
+			$this->table = $table;
+			$this->columns = $columns;
+			$this->hostnames = $hostnames;
+
+			parent::__construct($db, null, $user, null, null);
+		}
+	}
+
+	/* Connect to database
+	 */
+	$db = new MySQLi_connection(DB_HOSTNAME, DB_DATABASE, DB_USERNAME, DB_PASSWORD);
+	if ($db->connected == false) {
+		exit("Internal error: database not available.\n");
+	}
+
+	$settings = new settings($db);
+
+	/* Get information about webserver
+	 */
+	function get_information($db, $table, $columns, $user_id, $webserver_id, $hostnames) {
+		$user = new dummy_user($user_id);
+		$model = new stats_model($db, $user, $table, $columns, $hostnames);
+
+		$today = date("Y-m-d");
+		$begin = date("Y-m-d", strtotime("-".(HISTORY_DAYS - 1)." days"));
+		$end = date("Y-m-d", strtotime("tomorrow"));
+
+		if (($stats = $model->get_statistics($begin, $end, 0, $webserver_id)) === false) {
+			return false;
+		}
+
+		$result = array();
+		foreach ($columns as $column) {
+			$result[$column] = array("today" => 0, "previous" => 0);
+		}
+
+		foreach ($stats as $day => $stat) {
+			$type = ($day == $today) ? "today" : "previous";
+			foreach ($stat as $column => $value) {
+				$result[$column][$type] += $value;
+			}
+		}
+
+		foreach ($result as $i => $stat) {
+			$result[$i]["previous"] = round($stat["previous"] / (HISTORY_DAYS - 1));
+			$result[$i]["alert"] = "none";
+			if ($result[$i]["previous"] != 0) {
+				$percentage = round($stat["today"] / $result[$i]["previous"] * 100) - 100;
+				if ($percentage >= ALERT_HIGH) {
+					$result[$i]["alert"] = "high";
+				} else if ($percentage >= ALERT_MEDIUM) {
+					$result[$i]["alert"] = "medium";
+				}
+				$result[$i]["percentage"] = $percentage." %";
+			} else if ($result["today"] == 0) {
+				$result[$i]["percentage"] = "0 %";
+			} else {
+				$result[$i]["percentage"] = "&#8734;";
+			}
+		}
+
+		return $result;
+	}
+
+	/* Generate report for webserver
+	 */
+	function generate_report($db, $user, $webserver) {
+		static $reports = array();
+
+		if (isset($reports[$webserver["id"]])) {
+			return $reports[$webserver["id"]];
+		}
+
+		$stats = array(
+			"Request statistics" => array(
+				"table"     => "host_statistics",
+				"hostnames" => true,
+				"details"   => array(
+					"requests"              => "Requests",
+					"bytes_sent"            => "Bytes sent",
+					"result_forbidden"      => "Forbidden",
+					"result_not_found"      => "Not Found",
+					"result_internal_error"	=> "Internal Server Error")),
+			"Security statistics" => array(
+				"table"     => "host_statistics",
+				"hostnames" => true,
+				"details"   => array(
+					"bans"                  => "Bans",
+					"exploit_attempts"      => "Exploit attempts")),
+			"CGI statistics" => array(
+				"table"     => "cgi_statistics",
+				"hostnames" => true,
+				"details"   => array(
+					"time_0_1"              => "0 - 1 second",
+					"time_1_3"              => "1 - 3 seconds",
+					"time_3_10"             => "3 - 10 seconds",
+					"time_10_x"             => "More than 10 seconds",
+					"cgi_errors"            => "CGI errors")),
+			"Server statistics" => array(
+				"table"     => "server_statistics",
+				"hostnames" => false,
+				"details"   => array(
+					"connections"           => "Connections",
+					"result_bad_request"    => "Bad Requests")));
+
+		$report = array(
+			"content" => "<h2>".$webserver["name"]."</h2>\n",
+			"alerts"  => array());
+		foreach ($stats as $label => $stat) {
+			$report["content"] .= "<h3>".$label."</h3>\n";
+			$report["content"] .= "<table class=\"stats\">\n";
+			$report["content"] .= "<tr><th>Type</th><th>Value</th><th>= &#916;% of</th><th>Average</th></tr>\n";
+
+			$columns = array_keys($stat["details"]);
+			if (($information = get_information($db, $stat["table"], $columns, $user["id"], $webserver["id"], $stat["hostnames"])) == false) {
+				continue;
+			}
+
+			foreach ($information as $column => $value) {
+				$today = graph_model::readable_number($value["today"]);
+				$previous = graph_model::readable_number($value["previous"]);
+				$report["content"] .= "<tr><td>".$stat["details"][$column].":</td>".
+					"<td class=\"alert_".$value["alert"]."\">".$today."</td>".
+					"<td>".$value["percentage"]."</td><td>".$previous."</td></tr>\n";
+				if ($value["alert"] != "none") {
+					array_push($report["alerts"], $webserver["name"]);
+				}
+			}
+
+			$report["content"] .= "</table>\n";
+		}
+
+		$query = "select event, UNIX_TIMESTAMP(timestamp) as timestamp from events ".
+		         "where date(timestamp)=date(now()) and webserver_id=%d order by timestamp";
+		if (($events = $db->execute($query, $webserver["id"])) != false) {
+			$report["content"] .= "<h3>Events</h3>\n";
+			$report["content"] .= "<table class=\"events\">\n";
+			$report["content"] .= "<tr><th>Time</th><th>Event</th></tr>\n";
+
+			foreach ($events as $event) {
+				$report["content"] .= "<tr><td>".date("H:i:s", $event["timestamp"])."</td><td>".$event["event"]."</td></tr>\n";
+			}
+
+			$report["content"] .= "</table>\n";
+		}
+
+		$reports[$webserver["id"]] = $report;
+
+		return $report;
+	}
+
+	/* Select users which want to receive daily reports
+	 */
+	$query = "select * from users where daily_report=%d";
+	if (($users = $db->execute($query, YES)) == false) {
+		return;
+	}
+
+	/* Send reports per user
+	 */
+	if (($template = file_get_contents("../extra/report.html")) === false) {
+		return;
+	}
+
+	$query = "select * from webservers w, webserver_user l ".
+	         "where w.id=l.webserver_id and l.user_id=%d";
+	foreach ($users as $user) {
+		if (($webservers = $db->execute($query, $user["id"])) == false) {
+			continue;
+		}
+
+		$report_content = "";
+		$report_alerts = array();
+		foreach ($webservers as $webserver) {
+			if (($report = generate_report($db, $user, $webserver)) == false) {
+				continue;
+			}
+			$report_content .= $report["content"];
+			$report_alerts = array_unique(array_merge($report_alerts, $report["alerts"]), SORT_STRING);
+		}
+
+		$count = count($report_alerts);
+		if ($count == 0) {
+			$report_alerts = "-";
+		} else {
+			if ($count >= 2) {
+				$last = " and ".array_pop($report_alerts);
+			} else {
+				$last = "";
+			}
+			$report_alerts = implode(", ", $report_alerts).$last;
+		}
+
+		$replace = array(
+			"ALERTS"    => $report_alerts,
+			"CONTENT"   => $report_content,
+			"HISTORY"   => HISTORY_DAYS - 1,
+			"TIMESTAMP" => date("j F Y, H:i (O)"));
+
+		$email = new email("Daily Hiawatha Monitor report", $settings->webmaster_email);
+		$email->set_message_fields($replace);
+		$email->message($template);
+		$email->send($user["email"], $user["fullname"]);
+		unset($email);
+	}
+?>

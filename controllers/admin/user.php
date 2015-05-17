@@ -44,6 +44,8 @@
 		}
 
 		private function show_user_form($user) {
+			global $notification_methods;
+
 			if (isset($user["roles"]) == false) {
 				$user["roles"] = array();
 			}
@@ -80,6 +82,7 @@
 			}
 			$this->output->close_tag();
 
+			$user["daily_report"] = show_boolean($user["daily_report"]);
 			$this->output->record($user, "user");
 
 			$this->output->open_tag("roles");
@@ -97,6 +100,12 @@
 					"id"      => $role["id"],
 					"checked" => show_boolean($checked),
 					"enabled" => show_boolean($enabled)));
+			}
+			$this->output->close_tag();
+
+			$this->output->open_tag("notification");
+			foreach ($notification_methods as $method => $label) {
+				$this->output->add_tag("method", $method, array("label" => $label));
 			}
 			$this->output->close_tag();
 

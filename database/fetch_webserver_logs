@@ -1,12 +1,9 @@
 #!/usr/bin/php
 <?php
-	define("MAX_CACHE_SIZE", 10);
-
 	chdir(dirname($argv[0]));
 	require("../libraries/configuration.php");
 	require("../libraries/general.php");
-	require("../libraries/http.php");
-	require("../libraries/prowl.php");
+	require("../libraries/security.php");
 
 	/* Database functions
 	 */
@@ -49,28 +46,54 @@
 		return $db->insert("events", $data) !== false;
 	}
 
-	function send_prowl_notification($db, $message) {
-		static $keys = null;
-		static $prowl = null;
-
-		if ($keys === null) {
-			$query = "select * from users where prowl_key!=%s";
-			if (($users = $db->execute($query, "")) == false) {
-				return;
-			}
-			$keys = array();
-			foreach ($users as $user) {
-				array_push($keys, $user["prowl_key"]);
-			}
-
-			$prowl = new prowl("Hiawatha Monitor", $keys);
-		}
-
-		if ($prowl === null) {
+	function send_notification($db, $webserver_id, $message) {
+		$query = "select u.* from users u, webserver_user l ".
+		         "where u.id=l.user_id and l.webserver_id=%d and notification_method!=%s";
+		if (($users = $db->execute($query, $webserver_id, "none")) == false) {
 			return;
 		}
 
-		$prowl->send_notification("Event log", $message);
+		$prowl_keys = array();
+		$nma_keys = array();
+		$email_keys = array();
+		foreach ($users as $user) {
+			switch ($user["notification_method"]) {
+				case "prowl":
+					array_push($prowl_keys, $user["notification_key"]);
+					break;
+				case "nma":
+					array_push($nma_keys, $user["notification_key"]);
+					break;
+				case "email":
+					array_push($email_keys, $user["notification_key"]);
+					break;
+			}
+		}
+
+		/* Prowl
+		 */
+		if (count($prowl_keys) > 0) {
+			$prowl = new prowl("Hiawatha Monitor", $prowl_keys);
+			$prowl->send_notification("Event log", $message);
+		}
+
+		/* Notify My Andriod
+		 */
+		if (count($nma_keys) > 0) {
+			$nma = new NMA("Hiawatha Monitor", $nma_keys);
+			$nma->send_notification("Event log", $message);
+		}
+
+		/* E-mail
+		 */
+		if (count($email_keys) > 0) {
+			$settings = new settings($db);
+			$email = new email("Hiawatha Monitor event log", $settings->webmaster_email);
+			$email->message($message);
+			foreach ($email_keys as $address) {
+				$email->send($address);
+			}
+		}
 	}
 
 	/* HTTP class extensions
@@ -129,7 +152,7 @@
 			}
 
 			$message = sprintf("Webserver %s appears to be offline.", $webserver["name"]);
-			send_prowl_notification($db, $message);
+			send_notification($db, $webserver_id, $message);
 			continue;
 		}
 
@@ -333,7 +356,7 @@
 					 */
 					case "event";
 						list(, $event, $timestamp) = $field;
-						log_event($db, $event, $webserver_id, $timestamp);
+						log_event($db, $event, $webserver_id, (int)$timestamp);
 						break;
 					/* Version
 					 */
@@ -346,7 +369,7 @@
 					 */
 					default:
 						list($event, $timestamp) = $field;
-						log_event($db, $event, $webserver_id, $timestamp);
+						log_event($db, $event, $webserver_id, (int)$timestamp);
 				}
 			}
 		}

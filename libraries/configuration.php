@@ -9,7 +9,7 @@
 	/* For internal usage. Only change if you know what you're doing!
 	 */
 	define("BANSHEE_VERSION", "3.0");
-	define("MONITOR_VERSION", "0.8");
+	define("MONITOR_VERSION", "1.0");
 	define("ADMIN_ROLE_ID", 1);
 	define("YES", 1);
 	define("NO", 0);
@@ -49,6 +49,12 @@
 		"july", "august", "september", "october", "november", "december");
 	$days_of_week = array("monday", "tuesday", "wednesday", "thursday", "friday",
 		"saturday", "sunday");
+
+	$notification_methods = array(
+		"none"  => "No notification",
+		"prowl" => "Prowl",
+		"nma"   => "Notify My Android",
+		"email" => "E-mail");
 
 	/* Auto class loader
 	 *

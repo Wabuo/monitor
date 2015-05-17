@@ -55,7 +55,13 @@
 </xsl:for-each>
 </select></td></tr>
 <tr><td>Full name:</td><td><input type="text" name="fullname" value="{user/fullname}" class="text" /></td></tr>
-<tr><td>Prowl key:</td><td><input type="text" name="prowl_key" value="{user/prowl_key}" class="text" /></td></tr>
+<tr><td>Notification method:</td><td><select name="notification_method" class="text">
+<xsl:for-each select="notification/method">
+<option value="{.}"><xsl:if test=".=../../user/notification_method"><xsl:attribute name="selected">selected</xsl:attribute></xsl:if><xsl:value-of select="@label" /></option>
+</xsl:for-each>
+</select></td></tr>
+<tr><td>Notification key:</td><td><input type="text" name="notification_key" value="{user/notification_key}" class="text" /></td></tr>
+<tr><td>Daily report:</td><td><input type="checkbox" name="daily_report"><xsl:if test="user/daily_report='yes'"><xsl:attribute name="checked">check</xsl:attribute></xsl:if></input></td></tr>
 <tr><td valign="top">Roles:</td><td>
 <xsl:for-each select="roles/role">
 <div><input type="checkbox" name="roles[{@id}]" value="{@id}" class="role">

@@ -1,3 +1,12 @@
+monitor (1.0) stable; urgency=low
+
+  * Added script for sending daily reports.
+  * Support for Notify My Android notifications.
+  * Small improvements.
+  * Bugfix: wrong details per day for server statistics.
+
+ -- Hugo Leisink <hugo@leisink.net>  Sun, 12 Oct 2014 09:50:07 +0200
+
 monitor (0.8) stable; urgency=low
 
   * Access restrictions per webserver added.

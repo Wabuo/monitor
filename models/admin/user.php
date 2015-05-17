@@ -73,6 +73,7 @@
 		}
 
 		public function user_oke($user) {
+			global $notification_methods;
 			$result = true;
 
 			/* Non-admins cannot edit admins
@@ -99,6 +100,14 @@
 					$this->output->add_message("User already exists.");
 					$result = false;
 				}
+			}
+
+			if (in_array($user["notification_method"], array_keys($notification_methods)) == false) {
+				$this->output->add_message("Invalid notification method.");
+				$result = false;
+			} else if (($user["notification_method"] != "none") && ($user["notification_key"] == "")) {
+				$this->output->add_message("Specify a notification key.");
+				$result = false;
 			}
 
 			return $result;
@@ -150,10 +159,12 @@
 		}
 
 		public function create_user($user) {
-			$keys = array("id", "username", "password", "one_time_key", "status", "fullname", "email", "prowl_key");
+			$keys = array("id", "username", "password", "one_time_key", "status", "fullname",
+			              "email", "notification_key", "notification_method", "daily_report");
 
 			$user["id"] = null;
 			$user["one_time_key"] = null;
+			$user["daily_report"] = is_true($user["daily_report"]) ? YES : NO;
 			if (is_false($user["password_hashed"])) {
 				$user["password"]  = md5($user["password"]);
 			}
@@ -182,7 +193,7 @@
 		}
 
 		public function update_user($user) {
-			$keys = array("username", "fullname", "email", "prowl_key");
+			$keys = array("username", "fullname", "email", "notification_key", "notification_method", "daily_report");
 
 			if ($user["password"] != "") {
 				array_push($keys, "password");
@@ -190,6 +201,9 @@
 					$user["password"]  = md5($user["password"]);
 				}
 			}
+
+			$user["daily_report"] = is_true($user["daily_report"]) ? YES : NO;
+
 			if (is_array($user["roles"]) == false) {
 				$user["roles"] = array();
 			}

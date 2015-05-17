@@ -10,6 +10,10 @@
 //
 //-->
 <xsl:template match="events">
+<form action="/{/output/page}" method="post">
+<div class="hidess">Hide start/stop: <input type="checkbox" name="hide_ss" onChange="javascript:submit()"><xsl:if test="@hide_ss='yes'"><xsl:attribute name="checked">checked</xsl:attribute></xsl:if></input></div>
+<input type="hidden" name="submit_button" value="hidess" />
+</form>
 <table class="list">
 <tr><th class="timestamp">Timestamp</th><th class="webserver">Webserver</th><th class="action">Action</th></tr>
 <xsl:for-each select="event">

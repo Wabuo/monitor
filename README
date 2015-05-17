@@ -36,7 +36,6 @@ The Hiawatha Monitor requires the following PHP modules:
 
 Use the following PHP settings:
 	cgi.fix_pathinfo = 0 (when using FastCGI PHP), 1 (otherwise)
-	cgi.rfc2616_headers = 1
 	register_globals = Off
 	date.timezone = <your timezone>
 
@@ -48,13 +47,14 @@ Change the database settings in 'settings/website.conf' and run the script 'data
 
 CONFIGURE CRON DAEMON
 ======================
-Use the cron daemon to fetch the information from the webservers:
+Use the cron daemon to fetch the information from the webservers and to send the daily reports:
 
 # Crontab
 SHELL=/bin/sh
 MAILTO=<account name of which you can read e-mail>
 */5 * * * * /path/to/monitor/website/database/fetch_webserver_logs
-3 1 * * *   /path/to/monitor/website/database/delete_old_logs
+0   0 * * * /path/to/monitor/website/database/delete_old_logs
+59 23 * * * /path/to/monitor/website/database/send_reports
 
 
 USING THE HIAWATHA MONITOR

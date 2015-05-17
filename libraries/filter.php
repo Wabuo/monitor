@@ -21,6 +21,19 @@
 			return null;
 		}
 
+		private function valid_webserver($webserver_id) {
+			if ($webserver_id == 0) {
+				return true;
+			}
+
+			$query = "select count(*) as count from webserver_user where webserver_id=%d and user_id=%d";
+			if (($result = $this->db->execute($query, $webserver_id, $this->user->id)) === false) {
+				return false;
+			}
+
+			return $result[0]["count"] > 0;
+		}
+
 		public function to_output($table, $show_hostnames = true) {
 			if (is_array($_SESSION["filter"]) == false) {
 				$_SESSION["filter"] = array(
@@ -29,7 +42,7 @@
 			}
 
 			if ($_SERVER["REQUEST_METHOD"] == "POST") {
-				if ($_POST["submit_button"] == "filter") {
+				if (($_POST["submit_button"] == "filter") && $this->valid_webserver($_POST["webserver"])) {
 					if ($_SESSION["filter"]["webserver"] != $_POST["webserver"]) {
 						$_SESSION["filter"]["hostname"] = 0;
 						$selected_hostname = $_POST["hostname"];

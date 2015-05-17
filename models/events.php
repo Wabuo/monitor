@@ -1,9 +1,14 @@
 <?php
 	class events_model extends model {
-		public function count_events($filter_webserver) {
+		public function count_events($filter_webserver, $hide_ss) {
 			$query = "select count(*) as count from events e, webserver_user a ".
 					 "where e.webserver_id=a.webserver_id and a.user_id=%d";
 			$args = array($this->user->id);
+
+			if ($hide_ss) {
+				$query .= " and e.event not like %s";
+				array_push($args, "Server st%");
+			}
 
 			if ($filter_webserver != 0) {
 				$query .= " and e.webserver_id=%d";
@@ -17,11 +22,16 @@
 			return $result[0]["count"];
 		}
 
-		public function get_events($offset, $limit, $filter_webserver) {
+		public function get_events($offset, $limit, $filter_webserver, $hide_ss) {
 			$query = "select e.event, UNIX_TIMESTAMP(e.timestamp) as timestamp, w.name ".
 					 "from events e, webservers w, webserver_user a ".
 					 "where e.webserver_id=w.id and w.id=a.webserver_id and a.user_id=%d";
 			$args = array($this->user->id);
+
+			if ($hide_ss) {
+				$query .= " and e.event not like %s";
+				array_push($args, "Server st%");
+			}
 
 			if ($filter_webserver != 0) {
 				$query .= " and e.webserver_id=%d";

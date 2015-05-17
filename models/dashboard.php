@@ -8,50 +8,6 @@
 			return $this->db->execute($query, $this->user->id);
 		}
 
-		public function get_webserver_status() {
-			$query = "select webserver_id, unix_timestamp(max(timestamp)) as timestamp ".
-			         "from events where event=%s group by webserver_id";
-
-			/* Stops
-			 */
-			if (($stats = $this->db->execute($query, "Server stop")) === false) {
-				return false;
-			}
-
-			$stops = array();
-			foreach ($stats as $stat) {
-				$stops[$stat["webserver_id"]] = $stat["timestamp"];
-			}
-
-			/* Starts
-			 */
-			if (($stats = $this->db->execute($query, "Server start")) === false) {
-				return false;
-			}
-
-			$starts = array();
-			foreach ($stats as $stat) {
-				$starts[$stat["webserver_id"]] = $stat["timestamp"];
-			}
-
-			/* Status
-			 */
-			$status = array();
-			foreach (array_keys($starts) as $webserver_id) {
-				$status[$webserver_id] = "online";
-			}
-
-			foreach (array_keys($stops) as $webserver_id) {
-				if (isset($starts[$webserver_id]) == false) {
-					$status[$webserver_id] = "offline";
-				} else if ($stops[$webserver_id] > $starts[$webserver_id]) {
-					$status[$webserver_id] = "offline";
-				}
-			}
-
-			return $status;
-		}
-
 		public function get_top_bad_requests($timestamp) {
 			$query = "select sum(result_bad_request) as count, w.name as label ".
 					 "from server_statistics s, webserver_user a, webservers w ".
