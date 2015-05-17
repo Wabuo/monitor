@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 5.5.35, for debian-linux-gnu (x86_64)
+-- MySQL dump 10.13  Distrib 5.5.37, for debian-linux-gnu (x86_64)
 --
 -- Host: localhost    Database: hiawatha_monitor
 -- ------------------------------------------------------
--- Server version	5.5.35-0ubuntu0.12.04.2
+-- Server version	5.5.37-0ubuntu0.12.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -43,16 +43,17 @@ CREATE TABLE `cgi_statistics` (
   `timestamp_end` datetime NOT NULL,
   `webserver_id` int(11) unsigned NOT NULL,
   `hostname_id` int(11) unsigned NOT NULL,
-  `time_0_1` int(11) NOT NULL,
-  `time_1_3` int(11) NOT NULL,
-  `time_3_10` int(11) NOT NULL,
-  `time_10_x` int(11) NOT NULL,
+  `time_0_1` int(10) unsigned NOT NULL,
+  `time_1_3` int(10) unsigned NOT NULL,
+  `time_3_10` int(10) unsigned NOT NULL,
+  `time_10_x` int(10) unsigned NOT NULL,
+  `cgi_errors` int(10) unsigned NOT NULL,
   PRIMARY KEY (`id`),
   KEY `webserver_id` (`webserver_id`),
   KEY `hostname_id` (`hostname_id`),
   CONSTRAINT `cgi_statistics_ibfk_1` FOREIGN KEY (`webserver_id`) REFERENCES `webservers` (`id`),
   CONSTRAINT `cgi_statistics_ibfk_2` FOREIGN KEY (`hostname_id`) REFERENCES `hostnames` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=831 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -70,7 +71,7 @@ CREATE TABLE `events` (
   PRIMARY KEY (`id`),
   KEY `webserver_id` (`webserver_id`),
   CONSTRAINT `events_ibfk_1` FOREIGN KEY (`webserver_id`) REFERENCES `webservers` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=34688 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -98,7 +99,7 @@ CREATE TABLE `host_statistics` (
   KEY `hostname_id` (`hostname_id`),
   CONSTRAINT `host_statistics_ibfk_1` FOREIGN KEY (`webserver_id`) REFERENCES `webservers` (`id`),
   CONSTRAINT `host_statistics_ibfk_2` FOREIGN KEY (`hostname_id`) REFERENCES `hostnames` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=811932 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -113,7 +114,7 @@ CREATE TABLE `hostnames` (
   `hostname` tinytext NOT NULL,
   `visible` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=295 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -130,7 +131,7 @@ CREATE TABLE `menu` (
   `text` varchar(100) NOT NULL,
   `link` varchar(100) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM AUTO_INCREMENT=8 DEFAULT CHARSET=utf8;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -181,7 +182,7 @@ CREATE TABLE `pages` (
   `visible` tinyint(1) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `url` (`url`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -216,7 +217,7 @@ CREATE TABLE `roles` (
   `dashboard` tinyint(4) DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -241,11 +242,12 @@ CREATE TABLE `server_statistics` (
   `timestamp_begin` datetime NOT NULL,
   `timestamp_end` datetime NOT NULL,
   `webserver_id` int(10) unsigned NOT NULL,
-  `simult_conns` int(10) unsigned NOT NULL,
+  `connections` int(10) unsigned NOT NULL,
+  `result_bad_request` int(10) unsigned NOT NULL,
   PRIMARY KEY (`id`),
   KEY `webserver_id` (`webserver_id`),
   CONSTRAINT `server_statistics_ibfk_1` FOREIGN KEY (`webserver_id`) REFERENCES `webservers` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=133160 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -264,7 +266,7 @@ CREATE TABLE `sessions` (
   `ip_address` varchar(50) NOT NULL,
   `name` tinytext,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM AUTO_INCREMENT=569 DEFAULT CHARSET=utf8;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -281,7 +283,7 @@ CREATE TABLE `settings` (
   `value` varchar(256) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `key` (`key`)
-) ENGINE=MyISAM AUTO_INCREMENT=42 DEFAULT CHARSET=utf8;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -290,7 +292,7 @@ CREATE TABLE `settings` (
 
 LOCK TABLES `settings` WRITE;
 /*!40000 ALTER TABLE `settings` DISABLE KEYS */;
-INSERT INTO `settings` VALUES (1,'admin_page_size','integer','25'),(2,'page_after_login','string','dashboard'),(3,'start_page','string','dashboard'),(4,'webmaster_email','string','root@localhost'),(5,'head_title','string','Hiawatha Webserver Monitor'),(6,'head_description','string',' Hiawatha Webserver Monitor'),(7,'head_keywords','string','monitor, hiawatha'),(34,'default_language','string','en'),(38,'event_page_size','integer','25'),(39,'top_connections','integer','15');
+INSERT INTO `settings` VALUES (1,'admin_page_size','integer','25'),(2,'page_after_login','string','dashboard'),(3,'start_page','string','dashboard'),(4,'webmaster_email','string','root@localhost'),(5,'head_title','string','Hiawatha Monitor'),(6,'head_description','string','Security and performance monitoring tool for the Hiawatha webserver.'),(7,'head_keywords','string','monitor, hiawatha'),(34,'default_language','string','en'),(38,'event_page_size','integer','25'),(39,'top_connections','integer','15');
 /*!40000 ALTER TABLE `settings` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -339,7 +341,7 @@ CREATE TABLE `users` (
   `prowl_key` varchar(50) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -348,9 +350,26 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'admin','08b5411f848a2581a41672a759c87380',NULL,2,'Administrator','root@localhost','');
+INSERT INTO `users` VALUES (1,'admin','08b5411f848a2581a41672a759c87380',NULL,1,'Administrator','root@localhost','');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
+
+--
+-- Table structure for table `webserver_user`
+--
+
+DROP TABLE IF EXISTS `webserver_user`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `webserver_user` (
+  `webserver_id` int(10) unsigned NOT NULL,
+  `user_id` int(10) unsigned NOT NULL,
+  KEY `webserver_id` (`webserver_id`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `webserver_user_ibfk_1` FOREIGN KEY (`webserver_id`) REFERENCES `webservers` (`id`),
+  CONSTRAINT `webserver_user_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `webservers`
@@ -367,8 +386,9 @@ CREATE TABLE `webservers` (
   `ssl` tinyint(1) NOT NULL,
   `active` tinyint(1) NOT NULL,
   `errors` int(11) NOT NULL,
+  `version` tinytext,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -381,4 +401,4 @@ CREATE TABLE `webservers` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2014-04-23 21:09:22
+-- Dump completed on 2014-06-01  8:23:08

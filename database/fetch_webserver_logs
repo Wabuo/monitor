@@ -124,6 +124,9 @@
 			$db->update("webservers", $webserver_id, array("errors" => $webserver["errors"] + 1));
 			$event = "Error while getting statistics logfile index from webserver";
 			log_event($db, $event, $webserver_id);
+			if ($debug_mode) {
+				printf("%s\n", $event);
+			}
 
 			$message = sprintf("Webserver %s appears to be offline.", $webserver["name"]);
 			send_prowl_notification($db, $message);
@@ -151,8 +154,11 @@
 			}
 			$result = $http->GET("/".$file->nodeValue);
 			if ($result["status"] != 200) {
-				$event = "error while getting data file from webserver";
+				$event = "Error while getting data file from webserver";
 				log_event($db, $event, $webserver_id);
+				if ($debug_mode) {
+					printf("%s\n", $event);
+				}
 				continue;
 			}
 			if ($result["headers"]["Content-Type"] == "application/x-gzip") {
@@ -176,7 +182,7 @@
 					 */
 					case "cgi":
 						list(, $timestamp_begin, $timestamp_end, $hostname, $time_0_1,
-						       $time_1_3, $time_3_10, $time_10_x) = $field;
+						       $time_1_3, $time_3_10, $time_10_x, $cgi_errors) = $field;
 
 						if (($hostname_id = get_hostname_id($db, $hostname)) == false) {
 							print "Error getting hostname id\n";
@@ -208,7 +214,8 @@
 								"time_0_1"              => (int)$time_0_1,
 								"time_1_3"              => (int)$time_1_3,
 								"time_3_10"             => (int)$time_3_10,
-								"time_10_x"             => (int)$time_10_x));
+								"time_10_x"             => (int)$time_10_x,
+								"cgi_errors"            => (int)$cgi_errors));
 						} else {
 							/* Update existing CGI record
 							 */
@@ -218,21 +225,53 @@
 								"time_0_1"              => (int)($current["time_0_1"] + $time_0_1),
 								"time_1_3"              => (int)($current["time_1_3"] + $time_1_3),
 								"time_3_10"             => (int)($current["time_3_10"] + $time_3_10),
-								"time_10_x"             => (int)($current["time_10_x"] + $time_10_x));
+								"time_10_x"             => (int)($current["time_10_x"] + $time_10_x),
+								"cgi_errors"            => (int)($current["cgi_errors"] + $cgi_errors));
 							$db->update("cgi_statistics", $current["id"], $data);
 						}
 						break;
 					/* Server statistic
 					 */
 					case "server":
-						list(, $timestamp_begin, $timestamp_end, $connections) = $field;
+						list(, $timestamp_begin, $timestamp_end, $connections, $result_bad_request) = $field;
 
-						$db->insert("server_statistics", array(
-							"id"              => null,
-							"timestamp_begin" => date("Y-m-d H:i:s", (int)$timestamp_begin),
-							"timestamp_end"   => date("Y-m-d H:i:s", (int)$timestamp_end),
-							"webserver_id"    => (int)$webserver_id,
-							"simult_conns"    => (int)$connections));
+						if ($result_bad_request === NULL) {
+							break;
+						}
+
+						$day = date("Y-m-d", (int)$timestamp_begin);
+						if ($day === date("Y-m-d", (int)$timestamp_end)) {
+							/* Check for existing log on same day
+							 */
+							$query = "select * from server_statistics where webserver_id=%d and ".
+									 "timestamp_begin>=%s and timestamp_end<=%s limit 1";
+							$result = $db->execute($query, $webserver_id, $day." 00:00:00", $day." 23:59:59");
+						} else {
+							/* Log overlaps midnight
+							 */
+							$result = false;
+						}
+
+						if ($result == false) {
+							/* Insert new server record
+							 */
+							$db->insert("server_statistics", array(
+								"id"                 => null,
+								"timestamp_begin"    => date("Y-m-d H:i:s", (int)$timestamp_begin),
+								"timestamp_end"      => date("Y-m-d H:i:s", (int)$timestamp_end),
+								"webserver_id"       => (int)$webserver_id,
+								"connections"        => (int)$connections,
+								"result_bad_request" => (int)$result_bad_request));
+						} else {
+							/* Update existing server record
+							 */
+							$current = $result[0];
+							$data = array(
+								"timestamp_end"      => date("Y-m-d H:i:s", (int)$timestamp_end),
+								"connections"        => (int)($current["connections"] + $connections),
+								"result_bad_request" => (int)($current["result_bad_request"] + $result_bad_request));
+							$db->update("server_statistics", $current["id"], $data);
+						}
 						break;
 					/* Host statistic
 					 */
@@ -295,6 +334,13 @@
 					case "event";
 						list(, $event, $timestamp) = $field;
 						log_event($db, $event, $webserver_id, $timestamp);
+						break;
+					/* Version
+					 */
+					case "version":
+						list(, $version) = $field;
+						$data = array("version" => $version);
+						$db->update("webservers", $webserver_id, $data);
 						break;
 					/* Rest
 					 */

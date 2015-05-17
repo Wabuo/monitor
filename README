@@ -45,9 +45,6 @@ CONFIGURE YOUR DATABASE
 ========================
 Change the database settings in 'settings/website.conf' and run the script 'database/setup_database'.
 
-The database already contains the following user:
-	admin:monitor
-
 
 CONFIGURE CRON DAEMON
 ======================
@@ -62,6 +59,6 @@ MAILTO=<account name of which you can read e-mail>
 
 USING THE HIAWATHA MONITOR
 ===========================
-Please note that it might take some time (about an hour) before host statistics show up. The reason is because of the fact that Hiawatha caches these statistics for performance reasons.
+Login with username 'admin' and password 'monitor' and start adding webservers in the Webserver Administration page. Add "MonitorServer = <IP of monitor server> to the configuration file of your Hiawatha webservers.
 
 Don't forget to change the admin password and to check out the settings in the Settings administration page. When you're done testing, set DEBUG_MODE in settings/website.conf to 'no'.

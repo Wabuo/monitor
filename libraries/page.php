@@ -187,7 +187,7 @@
 
 			/* Change profile before access to private pages
 			 */
-			if ($this->user->logged_in && ($page != LOGOUT_MODULE)) {
+			if ($this->user->logged_in && ($page != LOGOUT_MODULE) && (isset($_SESSION["user_switch"]) == false)) {
 				if ($this->user->status == USER_STATUS_CHANGEPWD) {
 					$page = "profile";
 					$this->type = "";

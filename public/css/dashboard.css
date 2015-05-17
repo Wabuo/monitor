@@ -6,8 +6,18 @@ div.left {
 fieldset.webserver table {
 	border-spacing:0;
 }
+
 fieldset.webserver table td:first-child {
 	width:100px;
+	vertical-align:top;
+}
+
+fieldset legend.online {
+	background-color:#b0f0b0;
+}
+
+fieldset legend.offline {
+	background-color:#ffa0a0;
 }
 
 div.right {
@@ -21,13 +31,25 @@ fieldset.list {
 	border:1px solid #e0e0e0;
 	background-color:#f0f0f0;
 }
+
 fieldset.list h2 {
 	margin-bottom:5px;
 }
+
 fieldset.list div.item {
-	margin-bottom:2px;
+	padding:1px;
 }
+
+fieldset.list div.item:hover {
+	color:#ff8020;
+	background-color:#e0e0e0;
+}
+
 fieldset.list div.item div.label {
 	float:left;
-	width:200px;
+	width:300px;
+}
+
+fieldset.list div.item div.count {
+	text-align:right;
 }

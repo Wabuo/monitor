@@ -1,10 +1,11 @@
 <?php
 	abstract class graph_controller extends controller {
 		protected $graphs = array();
+		protected $hostnames = true;
 
 		private function show_graphs() {
-			$filter = new filter($this->db, $this->output);
-			$filter->to_output($this->model->table);
+			$filter = new filter($this->db, $this->output, $this->user);
+			$filter->to_output($this->model->table, $this->model->hostnames);
 
 			$begin = date("Y-m-d", strtotime("-".(MONITOR_DAYS - 1)." days"));
 			$end = date("Y-m-d", strtotime("tomorrow"));
@@ -52,14 +53,17 @@
 		}
 
 		private function show_day_information($type, $timestamp) {	
-			$filter = new filter($this->db, $this->output);
+			$filter = new filter($this->db, $this->output, $this->user);
 
 			if (($stats = $this->model->get_day_information($type, $timestamp, $filter->hostname, $filter->webserver)) === false) {
 				$this->output->add_tag("result", "Database error.");
 				return false;
 			}
 
-			$this->output->open_tag("day", array("label" => $this->graphs[$type]));
+			$this->output->open_tag("day", array(
+				"hostnames" => show_boolean($this->model->hostnames),
+				"label"     => $this->graphs[$type]));
+
 			foreach ($stats as $stat) {
 				if (($type == "requests") || ($type == "bytes_sent")) {
 					$stat["count"] = $this->model->readable_number($stat["count"]);
@@ -67,6 +71,7 @@
 
 				$this->output->record($stat, "stat");
 			}
+
 			$this->output->close_tag();
 		}
 

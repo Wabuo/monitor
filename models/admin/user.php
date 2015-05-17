@@ -43,11 +43,27 @@
 				array_push($user["roles"], $role["role_id"]);
 			}
 
+			$query = "select webserver_id from webserver_user where user_id=%d";
+			if (($webservers = $this->db->execute($query, $user_id)) === false) {
+				return false;
+			}
+
+			$user["webservers"] = array();
+			foreach ($webservers as $webserver) {
+				array_push($user["webservers"], (int)$webserver["webserver_id"]);
+			}
+
 			return $user;
 		}
 
 		public function get_all_roles() {
 			$query = "select * from roles order by name";
+
+			return $this->db->execute($query);
+		}
+
+		public function get_all_webservers() {
+			$query = "select * from webservers order by name";
 
 			return $this->db->execute($query);
 		}
@@ -115,6 +131,24 @@
 			return true;
 		}
 
+		public function assign_webservers_to_user($user) {
+			if ($this->db->query("delete from webserver_user where user_id=%d", $user["id"]) === false) {
+				return false;
+			}
+
+			if (is_array($user["webservers"]) == false) {
+				return true;
+			}
+
+			foreach ($user["webservers"] as $webserver_id) {
+				if ($this->db->query("insert into webserver_user values (%d, %d)", $webserver_id, $user["id"]) === false) {
+					return false;
+				}
+			}
+			
+			return true;
+		}
+
 		public function create_user($user) {
 			$keys = array("id", "username", "password", "one_time_key", "status", "fullname", "email", "prowl_key");
 
@@ -135,6 +169,11 @@
 			$user["id"] = $this->db->last_insert_id;
 
 			if ($this->assign_roles_to_user($user) === false) {
+				$this->db->query("rollback");
+				return false;
+			}
+
+			if ($this->assign_webservers_to_user($user) === false) {
 				$this->db->query("rollback");
 				return false;
 			}
@@ -171,6 +210,11 @@
 				return false;
 			}
 
+			if ($this->assign_webservers_to_user($user) === false) {
+				$this->db->query("rollback");
+				return false;
+			}
+
 			if ($this->db->update("users", $user["id"], $user, $keys) === false) {
 				$this->db->query("rollback");
 				return false;
@@ -185,6 +229,7 @@
 			}
 
 			$queries = array(
+				array("delete from webserver_user where user_id=%d", $user_id),
 				array("delete from user_role where user_id=%d", $user_id),
 				array("delete from users where id=%d", $user_id));
 

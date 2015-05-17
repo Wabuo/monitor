@@ -1,3 +1,22 @@
 table.list {
 	width:100%;
 }
+
+table.list th.port,
+table.list th.ssl,
+table.list th.active {
+	width:80px;
+}
+
+table.edit td:first-child {
+	vertical-align:top;
+	padding-top:3px;
+}
+
+input.text {
+	width:250px;
+}
+
+input.button {
+	margin-right:10px;
+}

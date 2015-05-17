@@ -2,28 +2,44 @@
 	abstract class graph_model extends model {
 		protected $columns = array();
 		protected $table = null;
+		protected $hostnames = true;
+		private $select = "";
+		private $from = "";
+		private $where = "";
+
+		public function __construct() {
+			$arguments = func_get_args();
+			call_user_func_array(array(parent, "__construct"), $arguments);
+
+			if ($this->hostnames) {
+				$this->select = "h.hostname, ";
+				$this->from = "hostnames h, ";
+				$this->where = "and t.hostname_id=h.id and h.visible=1 ";
+			}
+		}
 
 		public function __get($key) {
 			switch ($key) {
 				case "table": return $this->table;
+				case "hostnames": return $this->hostnames;
 			}
 
 			return null;
 		}
 
 		public function get_statistics($begin, $end, $filter_hostname, $filter_webserver) {
-			$query = "select * from %S where ".
-					 "((timestamp_begin>%s and timestamp_begin<%s) or ".
-					 "(timestamp_end>%s and timestamp_end<%s))";
+			$query = "select * from %S t, ".$this->from."webserver_user a ".
+			         "where t.webserver_id=a.webserver_id and a.user_id=%d ".$this->where.
+			         	"and ((timestamp_begin>%s and timestamp_begin<%s) or (timestamp_end>%s and timestamp_end<%s))";
+			$args = array($this->table, $this->user->id, $begin, $end, $begin, $end);
 
-			$filter_args = array();
-			if ($filter_hostname != 0) {
-				$query .= " and hostname_id=%d";
-				array_push($filter_args, $filter_hostname);
+			if ($this->hostnames && ($filter_hostname != 0)) {
+				$query .= " and t.hostname_id=%d";
+				array_push($args, $filter_hostname);
 			}
 			if ($filter_webserver != 0) {
-				$query .= " and webserver_id=%d";
-				array_push($filter_args, $filter_webserver);
+				$query .= " and t.webserver_id=%d";
+				array_push($args, $filter_webserver);
 			}
 
 			$query .= " limit %d,%d";
@@ -43,11 +59,12 @@
 				$result[$day] = $stats;
 				$timestamp += DAY;
 			}
-			
+
 			$offset = 0;
 			$limit = 3000;
+
 			do {
-				if (($entries = $this->db->execute($query, $this->table, $begin, $end, $begin, $end, $filter_args, $offset, $limit)) === false) {
+				if (($entries = $this->db->execute($query, $args, $offset, $limit)) === false) {
 					return false;
 				}
 
@@ -129,22 +146,26 @@
 			$begin = date("Y-m-d 00:00:00", $timestamp);
 			$end = date("Y-m-d 23:59:59", $timestamp);
 
-			$query = "select sum(s.%S) as count, h.hostname, w.name as webserver ".
-				"from %S s, hostnames h, webservers w ".
-				"where s.hostname_id=h.id and s.webserver_id=w.id and ".
-					"timestamp_begin>=%s and timestamp_begin<=%s and %S>0 ";
-			$args = array($column, $this->table, $begin, $end, $column);
+			$query = "select sum(t.%S) as count, ".$this->select."w.name as webserver ".
+			         "from %S t, ".$this->from."webservers w, webserver_user a ".
+			         "where t.webserver_id=w.id and w.id=a.webserver_id and a.user_id=%d ".$this->where.
+			         	"and timestamp_begin>=%s and timestamp_begin<=%s and %S>0 ";
+			$args = array($column, $this->table, $this->user->id, $begin, $end, $column);
 
-			if ($filter_hostname != 0) {
-				$query .= "and hostname_id=%d ";
+			if ($this->hostnames && ($filter_hostname != 0)) {
+				$query .= "and t.hostname_id=%d ";
 				array_push($args, $filter_hostname);
 			}
 			if ($filter_webserver != 0) {
-				$query .= "and webserver_id=%d ";
+				$query .= "and t.webserver_id=%d ";
 				array_push($args, $filter_webserver);
 			}
 
-			$query .= "group by hostname_id order by count desc";
+			if ($this->hostnames) {
+				$query .= "group by hostname_id ";
+			}
+
+			$query .= "order by count desc";
 
 			return $this->db->execute($query, $args);
 		}

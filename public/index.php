@@ -98,6 +98,11 @@
 				print ob_get_clean();
 				exit;
 			}
+
+			while ($_output->depth > 2) {
+				print "System error: controller didn't close an open tag.";
+				$_output->close_tag();
+			}
 		}
 	}
 

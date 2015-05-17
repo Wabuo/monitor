@@ -3,36 +3,6 @@
 
 <!--
 //
-//  Filter template
-//
-//-->
-<xsl:template match="filter">
-<div class="filter">
-<form action="/{/output/page}" method="post">
-<span>Host: <select class="text" name="hostname" onChange="javascript:submit()">
-<xsl:for-each select="hostnames/hostname">
-	<option value="{@id}">
-		<xsl:if test="@selected='yes'"><xsl:attribute name="selected">selected</xsl:attribute></xsl:if>
-		<xsl:value-of select="." />
-	</option>
-</xsl:for-each>
-</select></span>
-
-<span>Webserver: <select class="text" name="webserver" onChange="javascript:submit()">
-<xsl:for-each select="webservers/webserver">
-	<option value="{@id}">
-		<xsl:if test="@selected='yes'"><xsl:attribute name="selected">selected</xsl:attribute></xsl:if>
-		<xsl:value-of select="." />
-	</option>
-</xsl:for-each>
-</select></span>
-<input type="hidden" name="submit_button" value="filter" />
-</form>
-</div>
-</xsl:template>
-
-<!--
-//
 //  Graphs template
 //
 //-->
@@ -73,13 +43,17 @@
 <input type="button" value="Back" class="back button" onClick="javascript:document.location='/{/output/page}'" />
 <table class="list">
 <tr>
+<xsl:if test="@hostnames='yes'">
 <th class="hostname">Hostname</th>
+</xsl:if>
 <th class="webserver">Webserver</th>
 <th class="count"><xsl:value-of select="@label" /></th>
 </tr>
 <xsl:for-each select="stat">
 <tr>
+<xsl:if test="../@hostnames='yes'">
 <td><xsl:value-of select="hostname" /></td>
+</xsl:if>
 <td><xsl:value-of select="webserver" /></td>
 <td><xsl:value-of select="count" /></td>
 </tr>

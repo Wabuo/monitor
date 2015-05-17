@@ -9,8 +9,11 @@
 //-->
 <xsl:template match="webserver">
 <fieldset class="webserver">
-<legend><xsl:value-of select="name" /></legend>
+<legend class="{status}"><xsl:value-of select="name" /></legend>
 <table>
+<xsl:if test="version!=''">
+<tr><td>Version:</td><td><xsl:value-of select="version" /></td></tr>
+</xsl:if>
 <tr><td>Active sync:</td><td><xsl:value-of select="active" /></td></tr>
 <tr><td>Sync address:</td><td><xsl:value-of select="address" /></td></tr>
 <tr><td>Latest sync fails:</td><td><xsl:value-of select="errors" /></td></tr>
@@ -48,11 +51,13 @@
 <h2>Monitored webservers</h2>
 <xsl:apply-templates select="webserver" />
 </div>
+
 <div class="right">
 <h2>Alerts for today</h2>
 <xsl:apply-templates select="list" />
 </div>
-<br clear="both" />
+
+<div style="clear:both"></div>
 <xsl:apply-templates select="result" />
 </xsl:template>
 

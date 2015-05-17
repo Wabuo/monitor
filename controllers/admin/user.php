@@ -53,6 +53,11 @@
 				return;
 			}
 
+			if (($webservers = $this->model->get_all_webservers()) == false) {
+				$this->output->add_tag("result", "Database error.");
+				return;
+			}
+
 			/* Non-admins cannot edit admins
 			 */
 			if (($this->user->is_admin == false) && in_array(ADMIN_ROLE_ID, $user["roles"])) {
@@ -76,6 +81,7 @@
 			$this->output->close_tag();
 
 			$this->output->record($user, "user");
+
 			$this->output->open_tag("roles");
 			foreach ($roles as $role) {
 				/* Non-admins cannot assign the admin role
@@ -88,11 +94,21 @@
 				$enabled = ($this->user->id != $user["id"]) || ($role["id"] != ADMIN_ROLE_ID); /* Don't disable yourself */
 				
 				$this->output->add_tag("role", $role["name"], array(
-					"id" => $role["id"],
+					"id"      => $role["id"],
 					"checked" => show_boolean($checked),
 					"enabled" => show_boolean($enabled)));
 			}
 			$this->output->close_tag();
+
+			$this->output->open_tag("webservers");
+			foreach ($webservers as $webserver) {
+				$checked = in_array($webserver["id"], $user["webservers"]);
+				$this->output->add_tag("webserver", $webserver["name"], array(
+					"id"      => $webserver["id"],
+					"checked" => show_boolean($checked)));
+			}
+			$this->output->close_tag();
+
 			$this->output->close_tag();
 		}
 
@@ -140,9 +156,10 @@
 				/* Show the user webform
 				 */
 				$user = array(
-					"role_ids" => array(ADMIN_ROLE_ID + 1),
-					"status" => USER_STATUS_CHANGEPWD,
-					"roles" => array());
+					"role_ids"   => array(ADMIN_ROLE_ID + 1),
+					"status"     => USER_STATUS_CHANGEPWD,
+					"roles"      => array(),
+					"webservers" => array());
 				$this->show_user_form($user);
 			} else if (valid_input($this->page->pathinfo[2], VALIDATE_NUMBERS, VALIDATE_NONEMPTY)) {
 				/* Show the user webform

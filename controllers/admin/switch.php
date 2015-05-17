@@ -16,6 +16,7 @@
 					$this->user->log_action("switched to user_id ".$_POST["user_id"]);
 					$_SESSION["user_switch"] = $_SESSION["user_id"];
 					$_SESSION["user_id"] = (int)$_POST["user_id"];
+					unset($_SESSION["filter"]);
 					$this->output->add_tag("result", "User switch successfull.", array("url" => $this->settings->start_page));
 				}
 			} else {

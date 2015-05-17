@@ -4,6 +4,8 @@
 
 <xsl:template match="content">
 <h1>Login</h1>
+<div class="login">
+<img src="/images/hiawatha_logo.png" class="logo" />
 <table><tr><td class="login">
 <form action="{url}" method="post" onSubmit="javascript:hash_password(); return true;">
 <table>
@@ -24,6 +26,7 @@
 </form>
 <input type="hidden" id="challenge" value="{challenge}" />
 </td></tr></table>
+</div>
 
 <script type="text/javascript" src="/js/md5.js" />
 <script type="text/javascript" src="/js/login.js" />

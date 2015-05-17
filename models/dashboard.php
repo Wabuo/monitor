@@ -1,54 +1,135 @@
 <?php
 	class dashboard_model extends model {
 		public function get_webservers() {
-			$query = "select * from webservers order by name";
+			$query = "select * from webservers w, webserver_user a ".
+			         "where w.id=a.webserver_id and a.user_id=%d ".
+			         "order by name";
 
-			return $this->db->execute($query);
+			return $this->db->execute($query, $this->user->id);
 		}
 
-		public function get_top_exploit_attempts($timestamp) {
-			$query = "select sum(exploit_attempts) as attempts, h.hostname ".
-					 "from host_statistics s, hostnames h ".
-					 "where s.hostname_id=h.id and s.timestamp_begin>%s and exploit_attempts>0 ".
-					 "group by hostname order by attempts desc";
+		public function get_webserver_status() {
+			$query = "select webserver_id, unix_timestamp(max(timestamp)) as timestamp ".
+			         "from events where event=%s group by webserver_id";
 
-			return $this->db->execute($query, $timestamp);
+			/* Stops
+			 */
+			if (($stats = $this->db->execute($query, "Server stop")) === false) {
+				return false;
+			}
+
+			$stops = array();
+			foreach ($stats as $stat) {
+				$stops[$stat["webserver_id"]] = $stat["timestamp"];
+			}
+
+			/* Starts
+			 */
+			if (($stats = $this->db->execute($query, "Server start")) === false) {
+				return false;
+			}
+
+			$starts = array();
+			foreach ($stats as $stat) {
+				$starts[$stat["webserver_id"]] = $stat["timestamp"];
+			}
+
+			/* Status
+			 */
+			$status = array();
+			foreach (array_keys($starts) as $webserver_id) {
+				$status[$webserver_id] = "online";
+			}
+
+			foreach (array_keys($stops) as $webserver_id) {
+				if (isset($starts[$webserver_id]) == false) {
+					$status[$webserver_id] = "offline";
+				} else if ($stops[$webserver_id] > $starts[$webserver_id]) {
+					$status[$webserver_id] = "offline";
+				}
+			}
+
+			return $status;
+		}
+
+		public function get_top_bad_requests($timestamp) {
+			$query = "select sum(result_bad_request) as count, w.name as label ".
+					 "from server_statistics s, webserver_user a, webservers w ".
+					 "where s.webserver_id=a.webserver_id and a.webserver_id=w.id ".
+					 "and a.user_id=%d and s.timestamp_begin>%s and result_bad_request>0 ".
+					 "group by name order by count desc";
+
+			return $this->db->execute($query, $this->user->id, $timestamp);
 		}
 
 		public function get_top_bans($timestamp) {
-			$query = "select sum(bans) as bans, h.hostname ".
-					 "from host_statistics s, hostnames h ".
-					 "where s.hostname_id=h.id and s.timestamp_begin>%s and bans>0 ".
-					 "group by hostname order by bans desc";
+			$query = "select sum(bans) as count, h.hostname as label ".
+					 "from host_statistics s, hostnames h, webserver_user a ".
+					 "where s.hostname_id=h.id and s.webserver_id=a.webserver_id ".
+					 "and a.user_id=%d and s.timestamp_begin>%s and bans>0 ".
+			         "and h.visible=%d group by hostname order by count desc";
 
-			return $this->db->execute($query, $timestamp);
+			return $this->db->execute($query, $this->user->id, $timestamp, YES);
+		}
+
+		public function get_top_cgi_errors($timestamp) {
+			$query = "select sum(cgi_errors) as count, h.hostname as label ".
+					 "from cgi_statistics s, hostnames h, webserver_user a ".
+					 "where s.hostname_id=h.id and s.webserver_id=a.webserver_id and a.user_id=%d ".
+					 "and s.timestamp_begin>%s and cgi_errors>0 and h.visible=%d ".
+					 "group by hostname order by count desc";
+
+			return $this->db->execute($query, $this->user->id, $timestamp, YES);
+		}
+
+		public function get_top_events($timestamp) {
+			$query = "select count(event) as count, w.name as label ".
+					 "from events e, webserver_user a, webservers w ".
+					 "where e.webserver_id=a.webserver_id and a.webserver_id=w.id ".
+					 "and a.user_id=%d and e.timestamp>%s ".
+					 "group by name order by count desc";
+
+			return $this->db->execute($query, $this->user->id, $timestamp);
+		}
+
+		public function get_top_exploit_attempts($timestamp) {
+			$query = "select sum(exploit_attempts) as count, h.hostname as label ".
+					 "from host_statistics s, hostnames h, webserver_user a ".
+					 "where s.hostname_id=h.id and s.webserver_id=a.webserver_id and a.user_id=%d ".
+					 "and s.timestamp_begin>%s and exploit_attempts>0 and h.visible=%d ".
+					 "group by hostname order by count desc";
+
+			return $this->db->execute($query, $this->user->id, $timestamp, YES);
 		}
 
 		public function get_top_forbiddens($timestamp) {
-			$query = "select sum(result_forbidden) as forbidden, h.id, h.hostname ".
-					 "from host_statistics s, hostnames h ".
-					 "where s.hostname_id=h.id and s.timestamp_begin>%s and result_forbidden>0 ".
-					 "group by hostname order by forbidden desc";
+			$query = "select sum(result_forbidden) as count, h.hostname as label ".
+					 "from host_statistics s, hostnames h, webserver_user a ".
+					 "where s.hostname_id=h.id and s.webserver_id=a.webserver_id ".
+					 "and a.user_id=%d and s.timestamp_begin>%s and result_forbidden>0 ".
+			         "and h.visible=%d group by hostname order by count desc";
 
-			return $this->db->execute($query, $timestamp);
-		}
-
-		public function get_top_not_founds($timestamp) {
-			$query = "select h.id, sum(result_not_found) as not_found, h.id, h.hostname ".
-					 "from host_statistics s, hostnames h ".
-					 "where s.hostname_id=h.id and s.timestamp_begin>%s and result_not_found>0 ".
-					 "group by hostname order by not_found desc";
-
-			return $this->db->execute($query, $timestamp);
+			return $this->db->execute($query, $this->user->id, $timestamp, YES);
 		}
 
 		public function get_top_internal_errors($timestamp) {
-			$query = "select sum(result_internal_error) as errors, h.id, h.hostname ".
-					 "from host_statistics s, hostnames h ".
-					 "where s.hostname_id=h.id and s.timestamp_begin>%s and result_internal_error>0 ".
-					 "group by hostname order by errors desc";
+			$query = "select sum(result_internal_error) as count, h.hostname as label ".
+			         "from host_statistics s, hostnames h, webserver_user a ".
+					 "where s.hostname_id=h.id and s.webserver_id=a.webserver_id ".
+					 "and a.user_id=%d and s.timestamp_begin>%s and result_internal_error>0 ".
+					 "and h.visible=%d group by hostname order by count desc";
 
-			return $this->db->execute($query, $timestamp);
+			return $this->db->execute($query, $this->user->id, $timestamp, YES);
+		}
+
+		public function get_top_not_founds($timestamp) {
+			$query = "select h.id, sum(result_not_found) as count, h.hostname as label ".
+			         "from host_statistics s, hostnames h, webserver_user a ".
+					 "where s.hostname_id=h.id and s.webserver_id=a.webserver_id ".
+					 "and a.user_id=%d and s.timestamp_begin>%s and result_not_found>0 ".
+			         "and h.visible=%d group by hostname order by count desc";
+
+			return $this->db->execute($query, $this->user->id, $timestamp, YES);
 		}
 	}
 ?>

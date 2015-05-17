@@ -32,7 +32,7 @@
 <body>
 <div class="wrapper">
 	<div class="header">
-		<div class="title">Hiawatha Monitor</div>
+		<div class="title"><xsl:value-of select="title" /></div>
 	</div>
 
 	<div class="topbar">

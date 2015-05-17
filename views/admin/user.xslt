@@ -71,6 +71,15 @@
 </input><xsl:value-of select="." /></div>
 </xsl:for-each>
 </td></tr>
+<tr><td valign="top">Webservers:</td><td>
+<xsl:for-each select="webservers/webserver">
+<div><input type="checkbox" name="webservers[{@id}]" value="{@id}" class="webserver">
+<xsl:if test="@checked='yes'">
+<xsl:attribute name="checked">checked</xsl:attribute>
+</xsl:if>
+</input><xsl:value-of select="." /></div>
+</xsl:for-each>
+</td></tr>
 </table>
 
 <input type="submit" name="submit_button" value="Save user" class="button" />

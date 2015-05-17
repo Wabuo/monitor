@@ -1,9 +1,24 @@
+div.login {
+	margin-left:300px;
+	width:350px;
+}
+
+div.login img.logo {
+	float:right;
+}
+
+div.login table {
+	padding-top:30px;
+}
+
 td.login {
 	width:250px;
 }
+
 input.text {
 	width:150px;
 }
+
 input.button {
 	margin-right:10px;
 }
