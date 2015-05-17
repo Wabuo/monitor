@@ -19,15 +19,6 @@
 	check_PHP_setting("register_globals", 0);
 	check_PHP_setting("allow_url_include", 0);
 
-	/* Undo magic quotes
-	 */
-	if (ini_get("magic_quotes_gpc") == 1) {
-		$superglobals = array(&$_REQUEST, &$_GET, &$_POST, &$_COOKIE);
-		foreach ($superglobals as $i => $superglobal) {
-			$superglobals[$i] = remove_magic_quotes($superglobal);
-		}
-	}
-
 	/* Load core modules
 	 */
 	$_database = new MySQLi_connection(DB_HOSTNAME, DB_DATABASE, DB_USERNAME, DB_PASSWORD);
@@ -45,7 +36,7 @@
 
 	$_output->open_tag("output", array("url" => $_page->url));
 
-	if ($_page->ajax_request == false) {
+	if ($_output->add_layout_data) {
 		$_output->add_tag("banshee_version", BANSHEE_VERSION);
 		$_output->add_tag("monitor_version", MONITOR_VERSION);
 		$_output->add_tag("website_url", $_SERVER["SERVER_NAME"]);
@@ -106,7 +97,7 @@
 		}
 	}
 
-	if ($_page->ajax_request == false) {
+	if ($_output->add_layout_data) {
 		$_output->close_tag();
 	}
 

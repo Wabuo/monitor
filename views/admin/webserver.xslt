@@ -14,7 +14,7 @@
 <th class="name">Name</th>
 <th class="ip_address">IP address</th>
 <th class="port">Port</th>
-<th class="ssl">SSL</th>
+<th class="tls">TLS</th>
 <th class="active">Active</th>
 </tr>
 <xsl:for-each select="webservers/webserver">
@@ -22,7 +22,7 @@
 <td><xsl:value-of select="name" /></td>
 <td><xsl:value-of select="ip_address" /></td>
 <td><xsl:value-of select="port" /></td>
-<td><xsl:value-of select="ssl" /></td>
+<td><xsl:value-of select="tls" /></td>
 <td><xsl:value-of select="active" /></td>
 </tr>
 </xsl:for-each>
@@ -48,8 +48,8 @@
 <table class="edit">
 <tr><td>Name:</td><td><input type="text" name="name" value="{webserver/name}" class="text" /></td></tr>
 <tr><td>IP address:</td><td><input type="text" name="ip_address" value="{webserver/ip_address}" class="text" /></td></tr>
-<tr><td>Port:</td><td><input type="text" name="port" value="{webserver/port}" class="text" /></td></tr>
-<tr><td>SSL:</td><td><input type="checkbox" name="ssl"><xsl:if test="webserver/ssl='yes'"><xsl:attribute name="checked">checked</xsl:attribute></xsl:if></input></td></tr>
+<tr><td>Port:</td><td><input type="text" name="port" id="port" value="{webserver/port}" class="text" /></td></tr>
+<tr><td>TLS:</td><td><input type="checkbox" name="tls" id="tls" onChange="javascript:set_port_number(this)" ><xsl:if test="webserver/tls='yes'"><xsl:attribute name="checked">checked</xsl:attribute></xsl:if></input></td></tr>
 <tr><td>Active:</td><td><input type="checkbox" name="active"><xsl:if test="webserver/active='yes'"><xsl:attribute name="checked">checked</xsl:attribute></xsl:if></input></td></tr>
 <tr><td>Users:</td><td> <xsl:for-each select="users/user">
 <div><input type="checkbox" name="users[]" value="{@id}"><xsl:if test="@checked='yes'"><xsl:attribute name="checked">checked</xsl:attribute></xsl:if></input><xsl:value-of select="." /></div>
@@ -71,7 +71,7 @@
 //
 //-->
 <xsl:template match="content">
-<h1>Webservers</h1>
+<h1>Webserver administration</h1>
 <xsl:apply-templates select="overview" />
 <xsl:apply-templates select="edit" />
 <xsl:apply-templates select="result" />

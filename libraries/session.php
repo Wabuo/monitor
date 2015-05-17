@@ -116,9 +116,15 @@
 				if (is_true(SESSION_PERSISTENT)) {
 					session_set_cookie_params(SESSION_TIMEOUT);
 				}
+
+				if (ctype_print($_COOKIE[SESSION_NAME]) == false) {
+					unset($_COOKIE[SESSION_NAME]);
+				}
+
 				if (session_start() == false) {
 					return false;
 				}
+
 				$this->session_id = session_id();
 			}
 

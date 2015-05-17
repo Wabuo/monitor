@@ -16,3 +16,8 @@ input.switch {
 table.list {
 	margin-bottom:15px;
 }
+
+input.button {
+	padding:0 26px;
+	line-height:11px;
+}

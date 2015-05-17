@@ -57,9 +57,7 @@
 			<span><a href="/session">Session manager</a></span>
 		</xsl:if>
 		<span>Built upon the <a href="http://www.banshee-php.org/" target="_blank">Banshee PHP framework</a></span>
-		<xsl:if test="/output/user/@admin='yes'">
-			<span><a href="/admin">CMS</a></span>
-		</xsl:if>
+		<span><a href="/admin">CMS</a></span>
 	</div>
 </div>
 <xsl:apply-templates select="/output/internal_errors" />

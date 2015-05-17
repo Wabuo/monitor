@@ -6,7 +6,6 @@
 	 * http://www.banshee-php.org/
 	 */
 
-
 	class XML {
 		private $xml_header = "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
 		private $xml_data = "";
@@ -24,6 +23,8 @@
 		 * ERROR:  -
 		 */
 		public function __construct($db = null) {
+			libxml_disable_entity_loader(false);
+
 			if ($db !== null) {
 				$this->cache = new cache($db, "xml");
 			}

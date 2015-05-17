@@ -161,7 +161,7 @@
 				array_push($args, $filter_webserver);
 			}
 
-			$query .= "group by ".($this->hostnames ? "hostname_id" : "w.name")." order by count desc";
+			$query .= "group by ".$this->select."w.name order by count desc";
 
 			return $this->db->execute($query, $args);
 		}

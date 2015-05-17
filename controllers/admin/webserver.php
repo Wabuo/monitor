@@ -17,7 +17,7 @@
 
 			$this->output->open_tag("webservers");
 			foreach ($webservers as $webserver) {
-				$webserver["ssl"] = show_boolean($webserver["ssl"]);
+				$webserver["tls"] = show_boolean($webserver["tls"]);
 				$webserver["active"] = show_boolean($webserver["active"]);
 				$this->output->record($webserver, "webserver");
 			}
@@ -33,9 +33,11 @@
 				return;
 			}
 
+			$this->output->add_javascript("admin/webserver.js");
+
 			$this->output->open_tag("edit");
 
-			$webserver["ssl"] = show_boolean($webserver["ssl"]);
+			$webserver["tls"] = show_boolean($webserver["tls"]);
 			$webserver["active"] = show_boolean($webserver["active"]);
 			if (is_array($webserver["users"]) == false) {
 				$webserver["users"] = array();
@@ -101,7 +103,7 @@
 			} else if ($this->page->pathinfo[2] === "new") {
 				/* New webserver
 				 */
-				$webserver = array("active" => true);
+				$webserver = array("active" => true, "port" => "80");
 				$this->show_webserver_form($webserver);
 			} else if (valid_input($this->page->pathinfo[2], VALIDATE_NUMBERS, VALIDATE_NONEMPTY)) {
 				/* Edit webserver

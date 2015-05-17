@@ -100,14 +100,14 @@
 
 		/* Send request via proxy
 		 *
-		 * INPUT:  string host, int port[, bool ssl]
+		 * INPUT:  string host, int port[, bool tls]
 		 * OUTPUT: -
 		 * ERROR:  -
 		 */
-		public function via_proxy($host, $port, $ssl = false) {
+		public function via_proxy($host, $port, $tls = false) {
 			$this->connect_host = $host;
 			$this->connect_port = $port;
-			$this->protocol = $ssl ? "tls://" : "";
+			$this->protocol = $tls ? "tls://" : "";
 			$this->via_proxy = true;
 		}
 

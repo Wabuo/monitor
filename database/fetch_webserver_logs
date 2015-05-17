@@ -7,6 +7,24 @@
 
 	/* Database functions
 	 */
+	function get_version($db, $webserver_id) {
+		static $cache = array();
+
+		if (isset($cache[$webserver_id]) == false) {
+			$query = "select version from webservers where id=%d";
+			if (($result = $db->execute($query, $webserver_id)) == false) {
+				return false;
+			}
+
+			list($version) = explode(",", $result[0]["version"], 2);
+			list(, $version) = explode("v", $version);
+
+			$cache[$webserver_id] = $version;
+		}
+
+		return $cache[$webserver_id];
+	}
+
 	function get_foreign_key($db, $table, $key, $value) {
 		static $cache = array();
 
@@ -131,7 +149,7 @@
 		if (isset($http)) {
 			unset($http);
 		}
-		if (is_true($webserver["ssl"]) == false) {
+		if (is_true($webserver["tls"]) == false) {
 			$http = new HTTP_monitor($webserver["ip_address"], $webserver["port"]);;
 		} else {
 			$http = new HTTPS_monitor($webserver["ip_address"], $webserver["port"]);;
@@ -185,7 +203,10 @@
 				continue;
 			}
 			if ($result["headers"]["Content-Type"] == "application/x-gzip") {
-				$result["body"] = gzdecode($result["body"]);
+				if (($result["body"] = gzdecode($result["body"])) === false) {
+					printf("Invalid gzipped data received from %s.\n", $webserver["name"]);
+					continue;
+				}
 			}
 
 			$loglines = explode("\n", chop($result["body"]));
@@ -299,8 +320,21 @@
 					/* Host statistic
 					 */
 					case "host":
-						list(, $timestamp_begin, $timestamp_end, $hostname, $requests, $bytes_sent, $bans, $exploit_attempts,
-						       $result_forbidden, $result_not_found, $result_internal_error) = $field;
+						if (($webserver_version = get_version($db, $webserver_id)) == false) {
+							$lower_than_9_13 = true;
+						} else {
+							list($webserver_version) = explode("-", $webserver_version);
+							$lower_than_9_13 = version_compare($webserver_version, "9.13", "<");
+						}
+
+						if ($lower_than_9_13) {
+							list(, $timestamp_begin, $timestamp_end, $hostname, $requests, $bytes_sent, $bans, $exploit_attempts,
+								   $result_forbidden, $result_not_found, $result_internal_error) = $field;
+							$failed_logins = 0;
+						} else {
+							list(, $timestamp_begin, $timestamp_end, $hostname, $requests, $bytes_sent, $bans, $exploit_attempts,
+						   	    $failed_logins, $result_forbidden, $result_not_found, $result_internal_error) = $field;
+						}
 
 						if (($hostname_id = get_hostname_id($db, $hostname)) == false) {
 							print "Error getting hostname id\n";
@@ -333,6 +367,7 @@
 								"bytes_sent"            => (int)$bytes_sent,
 								"bans"                  => (int)$bans,
 								"exploit_attempts"      => (int)$exploit_attempts,
+								"failed_logins"         => (int)$failed_logins,
 								"result_forbidden"      => (int)$result_forbidden,
 								"result_not_found"      => (int)$result_not_found,
 								"result_internal_error" => (int)$result_internal_error));
@@ -346,6 +381,7 @@
 								"bytes_sent"            => (int)($current["bytes_sent"] + $bytes_sent),
 								"bans"                  => (int)($current["bans"] + $bans),
 								"exploit_attempts"      => (int)($current["exploit_attempts"] + $exploit_attempts),
+								"failed_logins"         => (int)($current["failed_logins"] + $failed_logins),
 								"result_forbidden"      => (int)($current["result_forbidden"] + $result_forbidden),
 								"result_not_found"      => (int)($current["result_not_found"] + $result_not_found),
 								"result_internal_error" => (int)($current["result_internal_error"] + $result_internal_error));

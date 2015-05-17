@@ -7,7 +7,7 @@
 				if ($this->model->update_hostnames($_POST["hostname"]) == false) {
 					$this->output->add_tag("result", "Error while updating hostname.");
 				} else {
-					$this->output->add_tag("result", "Hostnames have been updated.", array("url" => "admin"));
+					$this->output->add_tag("result", "Hostnames have been updated.");
 				}
 			} else {
 				/* Show hostname form

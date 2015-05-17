@@ -80,10 +80,10 @@
 		}
 
 		public function create_webserver($webserver) {
-			$keys = array("id", "name", "ip_address", "port", "ssl", "active", "errors", "version");
+			$keys = array("id", "name", "ip_address", "port", "tls", "active", "errors", "version");
 
 			$webserver["id"] = null;
-			$webserver["ssl"] = is_true($webserver["ssl"]) ? YES : NO;
+			$webserver["tls"] = is_true($webserver["tls"]) ? YES : NO;
 			$webserver["active"] = is_true($webserver["active"]) ? YES : NO;
 			$webserver["errors"] = 0;
 			$webserver["version"] = null;
@@ -107,9 +107,9 @@
 		}
 
 		public function update_webserver($webserver) {
-			$keys = array("name", "ip_address", "port", "ssl", "active");
+			$keys = array("name", "ip_address", "port", "tls", "active");
 
-			$webserver["ssl"] = is_true($webserver["ssl"]) ? YES : NO;
+			$webserver["tls"] = is_true($webserver["tls"]) ? YES : NO;
 			$webserver["active"] = is_true($webserver["active"]) ? YES : NO;
 
 			if ($this->db->query("begin") === false) {

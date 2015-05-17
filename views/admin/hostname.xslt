@@ -36,7 +36,7 @@
 //
 //-->
 <xsl:template match="content">
-<h1>Hostnames</h1>
+<h1>Hostname administration</h1>
 <xsl:apply-templates select="hostnames" />
 <xsl:apply-templates select="result" />
 </xsl:template>

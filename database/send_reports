@@ -1,8 +1,10 @@
 #!/usr/bin/php
 <?php
-	define("HISTORY_DAYS",  15);
-	define("ALERT_MEDIUM", 100);
-	define("ALERT_HIGH",   200);
+	define("HISTORY_DAYS",   15);
+	define("ALERT_MEDIUM",  150);
+	define("ALERT_HIGH",    300);
+	define("USE_MEDIAN",   true);
+	define("SKIP_NORMAL", false);
 
 	chdir(dirname($argv[0]));
 	require("../libraries/configuration.php");
@@ -47,6 +49,29 @@
 
 	$settings = new settings($db);
 
+	/* Calculate median
+	 */
+	function get_median($data, $key) {
+		$values = array();
+
+		foreach ($data as $item) {
+			array_push($values, $item[$key]);
+		}
+
+		sort($values);
+
+		$count = count($values);
+		if ($count & 1 == 1) {
+			$center = ($count + 1) / 2;
+			$median = $values[$center];
+		} else {
+			$center = $count / 2;
+			$median = ($values[$center] + $values[$center + 1]) / 2;
+		}
+
+		return $median;
+	}
+
 	/* Get information about webserver
 	 */
 	function get_information($db, $table, $columns, $user_id, $webserver_id, $hostnames) {
@@ -73,21 +98,30 @@
 			}
 		}
 
-		foreach ($result as $i => $stat) {
-			$result[$i]["previous"] = round($stat["previous"] / (HISTORY_DAYS - 1));
-			$result[$i]["alert"] = "none";
-			if ($result[$i]["previous"] != 0) {
-				$percentage = round($stat["today"] / $result[$i]["previous"] * 100) - 100;
-				if ($percentage >= ALERT_HIGH) {
-					$result[$i]["alert"] = "high";
-				} else if ($percentage >= ALERT_MEDIUM) {
-					$result[$i]["alert"] = "medium";
-				}
-				$result[$i]["percentage"] = $percentage." %";
-			} else if ($result["today"] == 0) {
-				$result[$i]["percentage"] = "0 %";
+		foreach ($result as $idx => $stat) {
+			if (USE_MEDIAN) {
+				$result[$idx]["previous"] = get_median($stats, $idx);
 			} else {
-				$result[$i]["percentage"] = "&#8734;";
+				$result[$idx]["previous"] = round($stat["previous"] / (HISTORY_DAYS - 1));
+			}
+
+			if ($result[$idx]["previous"] != 0) {
+				$percentage = round($stat["today"] / $result[$idx]["previous"] * 100) - 100;
+				$result[$idx]["percentage"] = $percentage." %";
+			} else if ($result["today"] == 0) {
+				$percentage = $stat["today"] * 100;
+				$result[$idx]["percentage"] = $percentage." %";
+			} else {
+				$percentage = 0;
+				$result[$idx]["percentage"] = "&#8734;";
+			}
+
+			if ($percentage >= ALERT_HIGH) {
+				$result[$idx]["alert"] = "high";
+			} else if ($percentage >= ALERT_MEDIUM) {
+				$result[$idx]["alert"] = "medium";
+			} else {
+				$result[$idx]["alert"] = "none";
 			}
 		}
 
@@ -117,17 +151,18 @@
 				"table"     => "host_statistics",
 				"hostnames" => true,
 				"details"   => array(
-					"bans"                  => "Bans",
-					"exploit_attempts"      => "Exploit attempts")),
+					"exploit_attempts"      => "Exploit attempts",
+					"failed_logins"         => "Failed logins",
+					"bans"                  => "Bans")),
 			"CGI statistics" => array(
 				"table"     => "cgi_statistics",
 				"hostnames" => true,
 				"details"   => array(
+					"cgi_errors"            => "CGI errors",
 					"time_0_1"              => "0 - 1 second",
 					"time_1_3"              => "1 - 3 seconds",
 					"time_3_10"             => "3 - 10 seconds",
-					"time_10_x"             => "More than 10 seconds",
-					"cgi_errors"            => "CGI errors")),
+					"time_10_x"             => "More than 10 seconds")),
 			"Server statistics" => array(
 				"table"     => "server_statistics",
 				"hostnames" => false,
@@ -138,10 +173,12 @@
 		$report = array(
 			"content" => "<h2>".$webserver["name"]."</h2>\n",
 			"alerts"  => array());
+		$type = USE_MEDIAN ? "Median" : "Average";
 		foreach ($stats as $label => $stat) {
-			$report["content"] .= "<h3>".$label."</h3>\n";
-			$report["content"] .= "<table class=\"stats\">\n";
-			$report["content"] .= "<tr><th>Type</th><th>Value</th><th>= &#916;% of</th><th>Average</th></tr>\n";
+			$header = "<h3>".$label."</h3>\n".
+				"<table class=\"stats\">\n".
+				"<tr><th>Type</th><th>Value</th><th>= &#916;% of</th><th>".$type."</th></tr>\n";
+			$header_set = false;
 
 			$columns = array_keys($stat["details"]);
 			if (($information = get_information($db, $stat["table"], $columns, $user["id"], $webserver["id"], $stat["hostnames"])) == false) {
@@ -149,6 +186,17 @@
 			}
 
 			foreach ($information as $column => $value) {
+				if ($value["percentage"] < ALERT_MEDIUM) {
+					if (SKIP_NORMAL) {
+						continue;
+					}
+				}
+
+				if ($header_set == false) {
+					$report["content"] .= $header;
+					$header_set = true;
+				}
+
 				$today = graph_model::readable_number($value["today"]);
 				$previous = graph_model::readable_number($value["previous"]);
 				$report["content"] .= "<tr><td>".$stat["details"][$column].":</td>".
@@ -183,8 +231,16 @@
 
 	/* Select users which want to receive daily reports
 	 */
-	$query = "select * from users where daily_report=%d";
-	if (($users = $db->execute($query, YES)) == false) {
+	if (count($argv) > 1) {
+		$args = array_slice($argv, 1);
+		$filter = array_fill(0, count($args), "%s");
+		$query = "select * from users where username in (".implode(", ", $filter).")";
+	} else {
+		$query = "select * from users where daily_report=%d";
+		$args = array(YES);
+	}
+
+	if (($users = $db->execute($query, $args)) == false) {
 		return;
 	}
 

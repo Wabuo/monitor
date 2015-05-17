@@ -7,6 +7,7 @@
 				$this->user->log_action("switched back to self");
 				$_SESSION["user_id"] = $_SESSION["user_switch"];
 				unset($_SESSION["user_switch"]);
+				unset($_SESSION["filter"]);
 			}
 		}
 	}

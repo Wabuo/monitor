@@ -146,6 +146,11 @@ div.page div.filter {
 	top:20px;
 	right:20px;
 }
+
+div.page div.filter select.filter {
+	min-width:75px;
+}
+
 div.page div.filter span {
 	margin-left:20px;
 }

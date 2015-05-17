@@ -12,6 +12,10 @@ fieldset.webserver table td:first-child {
 	vertical-align:top;
 }
 
+fieldset.webserver table td.warning {
+	color:#ff0000;
+}
+
 fieldset legend.online {
 	background-color:#b0f0b0;
 }

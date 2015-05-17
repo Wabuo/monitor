@@ -1,3 +1,16 @@
+monitor (1.1) stable; urgency=low
+
+  * Support for failed login logging.
+  * Hostname selection in CMS per user.
+  * Improved XML output filter. Add JSON output filter.
+  * Reports use median instead of average.
+  * Database changes:
+      ALTER TABLE `webservers` CHANGE `ssl` `tls` TINYINT(1) NOT NULL;
+      ALTER TABLE `host_statistics` ADD `failed_logins` INT UNSIGNED NOT NULL AFTER `exploit_attempts`;
+  * Small bugfixes.
+
+ -- Hugo Leisink <hugo@leisink.net>  Sun, 10 May 2015 09:47:41 +0200
+
 monitor (1.0) stable; urgency=low
 
   * Added script for sending daily reports.

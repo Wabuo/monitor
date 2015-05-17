@@ -60,7 +60,7 @@
 			$query = "select w.* from webservers w, webserver_user a ".
 			         "where w.id=a.webserver_id and a.user_id=%d and w.active=%d ".
 			         "order by name";
-			if (($webservers = $this->db->execute($query, $this->user->id, YES)) != false) {
+			if (($webservers = $this->db->execute($query, $this->user->id, YES)) !== false) {
 				$this->output->open_tag("webservers");
 				array_unshift($webservers, array("id" => 0, "name" => "All"));
 				foreach ($webservers as $webserver) {
@@ -85,7 +85,7 @@
 							 "order by hostname";
 					$args = array(YES, $table, $_SESSION["filter"]["webserver"]);
 				}
-				if (($hostnames = $this->db->execute($query, $args)) != false) {
+				if (($hostnames = $this->db->execute($query, $args)) !== false) {
 					$this->output->open_tag("hostnames");
 					array_unshift($hostnames, array("id" => 0, "hostname" => "All"));
 
@@ -110,6 +110,7 @@
 					}
 				}
 			}
+
 
 			$this->output->close_tag();
 

@@ -3,7 +3,7 @@ table.list {
 }
 
 table.list th.port,
-table.list th.ssl,
+table.list th.tls,
 table.list th.active {
 	width:80px;
 }

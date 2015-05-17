@@ -26,6 +26,7 @@
 		private $content_type = "text/html; charset=utf-8";
 		private $layout = LAYOUT_SITE;
 		private $disabled = false;
+		private $add_layout_data = true;
 
 		/* Constructor
 		 *
@@ -38,10 +39,15 @@
 			$this->settings = $settings;
 			$this->page = $page;
 
-			if (isset($_GET["output"])) {
-				$this->mode = $_GET["output"];
-			} else if ($this->page->ajax_request) {
+			if ($this->page->ajax_request) {
 				$this->mode = "xml";
+				$this->add_layout_data = false;
+			} else if (isset($_GET["output"])) {
+				if (($this->mode = $_GET["output"]) == "raw") {
+					$this->mode = "xml";
+				} else {
+					$this->add_layout_data = false;
+				}
 			}
 
 			$this->language = $settings->default_language;
@@ -78,6 +84,7 @@
 				case "content_type": return $this->content_type;
 				case "layout": return $this->layout;
 				case "disabled": return $this->disabled;
+				case "add_layout_data": return $this->add_layout_data;
 			}
 
 			return parent::__get($key);
@@ -99,6 +106,7 @@
 				case "inline_css": $this->inline_css = $value; break;
 				case "content_type": $this->content_type = $value; break;
 				case "disabled": $this->disabled = $value; break;
+				case "add_layout_data": $this->add_layout_data = $value; break;
 				default: trigger_error("Unknown output variable: ".$key);
 			}
 		}
@@ -235,7 +243,7 @@
 		 * ERROR:  -
 		 */
 		public function close_tag() {
-			if (($this->page->ajax_request == false) && ($this->depth == 1)) {
+			if ($this->add_layout_data && ($this->depth == 1)) {
 				/* Messages
 				 */
 				if (count($this->system_messages) > 0) {
@@ -310,6 +318,57 @@
 			return false;
 		}
 
+		/* Optimize array from XML for JSON
+		 *
+		 * INPUT:  array data
+		 * OUTPUT: array data
+		 * ERROR:  -
+		 */
+		private function optimize_for_json($data) {
+			if (is_array($data) == false) {
+				return $data;
+			}
+
+			$made_array = array();
+
+			$result = array();
+			foreach ($data as $item) {
+				$key = $item["name"];
+				$value = $this->optimize_for_json($item["content"]);
+
+				/* Attributes
+				 */
+				if (count($item["attributes"]) > 0) {
+					if (is_array($value) == false) {
+						$value = array($value);
+					}
+					$attr = array();
+					foreach ($item["attributes"] as $attrib_key => $attrib_value) {
+						if (($attrib_key == "id") && is_numeric($attrib_value)) {
+							$attrib_value = (int)$attrib_value;
+						}
+						$attr["@".$attrib_key] = $attrib_value;
+					}
+					$value = array_merge($attr, $value);
+				}
+
+				/* Values
+				 */
+				if (isset($result[$key])) {
+					if ($made_array[$key] == false) {
+						$result[$key] = array($result[$key]);
+						$made_array[$key] = true;
+					}
+					array_push($result[$key], $value);
+				} else {
+					$result[$key] = $value;
+					$made_array[$key] = false;
+				}
+			}
+
+			return $result;
+		}
+
 		/* Generate output via XSLT
 		 *
 		 * INPUT:  string output type, string XSLT file
@@ -322,6 +381,12 @@
 			}
 
 			switch ($this->mode) {
+				case "json":
+					$data = $this->array;
+					$data = $this->optimize_for_json($data);
+					header("Content-Type: application/json");
+					$result = json_encode($data["output"]);
+					break;
 				case "xml":
 					header("Content-Type: text/xml");
 					$result = $this->document;

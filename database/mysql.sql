@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 5.5.38, for debian-linux-gnu (x86_64)
+-- MySQL dump 10.13  Distrib 5.5.43, for debian-linux-gnu (x86_64)
 --
 -- Host: localhost    Database: hiawatha_monitor
 -- ------------------------------------------------------
--- Server version	5.5.38-0ubuntu0.14.04.1
+-- Server version	5.5.43-0ubuntu0.14.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -87,13 +87,14 @@ CREATE TABLE `host_statistics` (
   `timestamp_end` datetime NOT NULL,
   `webserver_id` int(10) unsigned NOT NULL,
   `hostname_id` int(10) unsigned NOT NULL,
-  `requests` int(11) NOT NULL,
-  `bytes_sent` bigint(20) NOT NULL,
-  `bans` int(11) NOT NULL,
-  `exploit_attempts` int(11) NOT NULL,
-  `result_forbidden` int(11) NOT NULL,
-  `result_not_found` int(11) NOT NULL,
-  `result_internal_error` int(11) NOT NULL,
+  `requests` int(11) unsigned NOT NULL,
+  `bytes_sent` bigint(20) unsigned NOT NULL,
+  `bans` int(11) unsigned NOT NULL,
+  `exploit_attempts` int(11) unsigned NOT NULL,
+  `failed_logins` int(11) unsigned NOT NULL,
+  `result_forbidden` int(11) unsigned NOT NULL,
+  `result_not_found` int(11) unsigned NOT NULL,
+  `result_internal_error` int(11) unsigned NOT NULL,
   PRIMARY KEY (`id`),
   KEY `webserver_id` (`webserver_id`),
   KEY `hostname_id` (`hostname_id`),
@@ -226,7 +227,7 @@ CREATE TABLE `roles` (
 
 LOCK TABLES `roles` WRITE;
 /*!40000 ALTER TABLE `roles` DISABLE KEYS */;
-INSERT INTO `roles` VALUES (1,'Administrator',1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1),(2,'Webmaster',1,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,1,1,1,1);
+INSERT INTO `roles` VALUES (1,'Administrator',1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1),(2,'Webmaster',1,1,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,1,1,1);
 /*!40000 ALTER TABLE `roles` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -385,9 +386,9 @@ CREATE TABLE `webservers` (
   `name` tinytext NOT NULL,
   `ip_address` varchar(40) NOT NULL,
   `port` smallint(5) unsigned NOT NULL,
-  `ssl` tinyint(1) NOT NULL,
+  `tls` tinyint(1) NOT NULL,
   `active` tinyint(1) NOT NULL,
-  `errors` int(11) NOT NULL,
+  `errors` int(11) unsigned NOT NULL,
   `version` tinytext,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -403,4 +404,4 @@ CREATE TABLE `webservers` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2014-10-07 10:00:37
+-- Dump completed on 2015-05-10 15:22:36

@@ -13,10 +13,11 @@
 <table>
 <xsl:if test="version!=''">
 <tr><td>Version:</td><td><xsl:value-of select="version" /></td></tr>
+<tr><td>Up to date:</td><td><xsl:if test="uptodate='no'"><xsl:attribute name="class">warning</xsl:attribute></xsl:if><xsl:value-of select="uptodate" /></td></tr>
 </xsl:if>
 <tr><td>Active sync:</td><td><xsl:value-of select="active" /></td></tr>
 <tr><td>Sync address:</td><td><xsl:value-of select="address" /></td></tr>
-<tr><td>Latest sync fails:</td><td><xsl:value-of select="errors" /></td></tr>
+<tr><td>Latest sync fails:</td><td><xsl:if test="errors>0"><xsl:attribute name="class">warning</xsl:attribute></xsl:if><xsl:value-of select="errors" /></td></tr>
 </table>
 </fieldset>
 </xsl:template>
