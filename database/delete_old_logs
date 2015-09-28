@@ -19,21 +19,21 @@
 
 	/* Server statistics
 	 */
-	$query = "delete from server_statistics where timestamp_end<%s";
+	$query = "delete from server_statistics where date<%s";
 	if ($db->query($query, $date) == false) {
 		exit("Error deleting server statistics.\n");
 	}
 
 	/* Host statistics
 	 */
-	$query = "delete from host_statistics where timestamp_end<%s";
+	$query = "delete from host_statistics where date<%s";
 	if ($db->query($query, $date) == false) {
 		exit("Error deleting host statistics.\n");
 	}
 
 	/* CGI statistics
 	 */
-	$query = "delete from cgi_statistics where timestamp_end<%s";
+	$query = "delete from cgi_statistics where date<%s";
 	if ($db->query($query, $date) == false) {
 		exit("Error deleting CGI statistics.\n");
 	}

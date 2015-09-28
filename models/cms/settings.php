@@ -20,7 +20,7 @@
 				"type"     => "varchar",
 				"overview" => true,
 				"required" => false));
-		private $hidden_keys = array();
+		private $hidden_keys = array("database_version");
 
 		public function __construct() {
 			$arguments = func_get_args();
@@ -124,7 +124,7 @@
 		private function fix_key_type($item) {
 			switch ($item["type"]) {
 				case "boolean": $item["value"] = is_true($item["value"]) ? "true" : "false"; break;
-				case "float": $item["value"] = (float)$item["value"]; break;
+				case "float": $item["value"] = rtrim((float)$item["value"], "0"); break;
 				case "integer": $item["value"] = (int)$item["value"]; break;
 			}
 

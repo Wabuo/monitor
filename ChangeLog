@@ -1,3 +1,11 @@
+monitor (1.3) stable; urgency=low
+
+  * Improved dashboard.
+  * Hourly graph added to day overview page.
+  * Setup module added.
+
+ -- Hugo Leisink <hugo@leisink.net>  Thu,  3 Sep 2015 14:15:29 +0200
+
 monitor (1.2) stable; urgency=low
 
   * Banshee framework updated to 5.0.

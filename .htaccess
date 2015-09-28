@@ -1,5 +1,0 @@
-<IfModule rewrite_module>
-	RewriteEngine On
-	RewriteBase /
-	RewriteRule . /public/$1 [QSA]
-</IfModule>

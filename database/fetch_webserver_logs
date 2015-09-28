@@ -113,6 +113,155 @@
 		}
 	}
 
+	function get_date_hour($timestamp_begin, $timestamp_end) {
+		$date = date("Y-m-d", (int)$timestamp_begin);
+		$hour = date("G", (int)$timestamp_begin);
+
+		$hour_end = date("G", (int)$timestamp_end);
+		if ($hour != $hour_end) {
+			if ((59 - (int)date("i", $timestamp_begin)) <= (int)date("i", $timestamp_end)) {
+				if ($hour_end < $hour) {
+					$date = date("Y-m-d", (int)$timestamp_end);
+				}
+				$hour = $hour_end;
+			}
+		}
+
+		return array($date, $hour);
+	}
+
+	function handle_cgi_statistics($db, $webserver_id, $field) {
+		list(, $timestamp_begin, $timestamp_end, $hostname, $time_0_1,
+			   $time_1_3, $time_3_10, $time_10_x, $cgi_errors) = $field;
+
+		if (($hostname_id = get_hostname_id($db, $hostname)) == false) {
+			print "Error getting hostname id\n";
+			continue;
+		}
+
+		list($date, $hour) = get_date_hour($timestamp_begin, $timestamp_end);
+
+		$query = "select * from cgi_statistics where webserver_id=%d and hostname_id=%d and date=%s and hour=%d";
+		$result = $db->execute($query, $webserver_id, $hostname_id, $date, $hour);
+
+		if ($result == false) {
+			/* Insert new CGI record
+			 */
+			$db->insert("cgi_statistics", array(
+				"id"                    => null,
+				"date"                  => $date,
+				"hour"                  => $hour,
+				"webserver_id"          => (int)$webserver_id,
+				"hostname_id"           => (int)$hostname_id,
+				"time_0_1"              => (int)$time_0_1,
+				"time_1_3"              => (int)$time_1_3,
+				"time_3_10"             => (int)$time_3_10,
+				"time_10_x"             => (int)$time_10_x,
+				"cgi_errors"            => (int)$cgi_errors));
+		} else {
+			/* Update existing CGI record
+			 */
+			$current = $result[0];
+			$data = array(
+				"time_0_1"              => (int)($current["time_0_1"] + $time_0_1),
+				"time_1_3"              => (int)($current["time_1_3"] + $time_1_3),
+				"time_3_10"             => (int)($current["time_3_10"] + $time_3_10),
+				"time_10_x"             => (int)($current["time_10_x"] + $time_10_x),
+				"cgi_errors"            => (int)($current["cgi_errors"] + $cgi_errors));
+			$db->update("cgi_statistics", $current["id"], $data);
+		}
+	}
+
+	function handle_server_statistics($db, $webserver_id, $field) {
+		list(, $timestamp_begin, $timestamp_end, $connections, $result_bad_request) = $field;
+
+		list($date, $hour) = get_date_hour($timestamp_begin, $timestamp_end);
+
+		$query = "select * from server_statistics where webserver_id=%d and date=%s and hour=%d";
+		$result = $db->execute($query, $webserver_id, $date, $hour);
+
+		if ($result == false) {
+			/* Insert new server record
+			 */
+			$db->insert("server_statistics", array(
+				"id"                 => null,
+				"date"               => $date,
+				"hour"               => $hour,
+				"webserver_id"       => (int)$webserver_id,
+				"connections"        => (int)$connections,
+				"result_bad_request" => (int)$result_bad_request));
+		} else {
+			/* Update existing server record
+			 */
+			$current = $result[0];
+			$data = array(
+				"connections"        => (int)($current["connections"] + $connections),
+				"result_bad_request" => (int)($current["result_bad_request"] + $result_bad_request));
+			$db->update("server_statistics", $current["id"], $data);
+		}
+	}
+
+	function handle_host_statistics($db, $webserver_id, $field) {
+		if (($webserver_version = get_version($db, $webserver_id)) == false) {
+			$lower_than_9_13 = true;
+		} else {
+			list($webserver_version) = explode("-", $webserver_version);
+			$lower_than_9_13 = version_compare($webserver_version, "9.13", "<");
+		}
+
+		if ($lower_than_9_13) {
+			list(, $timestamp_begin, $timestamp_end, $hostname, $requests, $bytes_sent, $bans, $exploit_attempts,
+				   $result_forbidden, $result_not_found, $result_internal_error) = $field;
+			$failed_logins = 0;
+		} else {
+			list(, $timestamp_begin, $timestamp_end, $hostname, $requests, $bytes_sent, $bans, $exploit_attempts,
+				$failed_logins, $result_forbidden, $result_not_found, $result_internal_error) = $field;
+		}
+
+		if (($hostname_id = get_hostname_id($db, $hostname)) == false) {
+			print "Error getting hostname id\n";
+			continue;
+		}
+
+		list($date, $hour) = get_date_hour($timestamp_begin, $timestamp_end);
+
+		$query = "select * from host_statistics where webserver_id=%d and hostname_id=%d and date=%s and hour=%d";
+		$result = $db->execute($query, $webserver_id, $hostname_id, $date, $hour);
+
+		if ($result == false) {
+			/* Insert new host record
+			 */
+			$db->insert("host_statistics", array(
+				"id"                    => null,
+				"date"                  => $date,
+				"hour"                  => $hour,
+				"webserver_id"          => (int)$webserver_id,
+				"hostname_id"           => (int)$hostname_id,
+				"requests"              => (int)$requests,
+				"bytes_sent"            => (int)$bytes_sent,
+				"bans"                  => (int)$bans,
+				"exploit_attempts"      => (int)$exploit_attempts,
+				"failed_logins"         => (int)$failed_logins,
+				"result_forbidden"      => (int)$result_forbidden,
+				"result_not_found"      => (int)$result_not_found,
+				"result_internal_error" => (int)$result_internal_error));
+		} else {
+			/* Update existing host record
+			 */
+			$current = $result[0];
+			$data = array(
+				"requests"              => (int)($current["requests"] + $requests),
+				"bytes_sent"            => (int)($current["bytes_sent"] + $bytes_sent),
+				"bans"                  => (int)($current["bans"] + $bans),
+				"exploit_attempts"      => (int)($current["exploit_attempts"] + $exploit_attempts),
+				"failed_logins"         => (int)($current["failed_logins"] + $failed_logins),
+				"result_forbidden"      => (int)($current["result_forbidden"] + $result_forbidden),
+				"result_not_found"      => (int)($current["result_not_found"] + $result_not_found),
+				"result_internal_error" => (int)($current["result_internal_error"] + $result_internal_error));
+			$db->update("host_statistics", $current["id"], $data);
+		}
+	}
+
 	/* HTTP class extensions
 	 */
 	class HTTP_monitor extends HTTP {
@@ -217,191 +366,25 @@
 				$field = explode("\t", chop($logline));
 
 				switch ($field[0]) {
-					/* Request (obsolete)
-					 */
 					case "request":
 						break;
-					/* CGI runtime
-					 */
 					case "cgi":
-						list(, $timestamp_begin, $timestamp_end, $hostname, $time_0_1,
-						       $time_1_3, $time_3_10, $time_10_x, $cgi_errors) = $field;
-
-						if (($hostname_id = get_hostname_id($db, $hostname)) == false) {
-							print "Error getting hostname id\n";
-							continue;
-						}
-
-						$day = date("Y-m-d", (int)$timestamp_begin);
-						if ($day === date("Y-m-d", (int)$timestamp_end)) {
-							/* Check for existing log on same day
-							 */
-							$query = "select * from cgi_statistics where webserver_id=%d and hostname_id=%d and ".
-									 "timestamp_begin>=%s and timestamp_end<=%s limit 1";
-							$result = $db->execute($query, $webserver_id, $hostname_id, $day." 00:00:00", $day." 23:59:59");
-						} else {
-							/* Log overlaps midnight
-							 */
-							$result = false;
-						}
-
-						if ($result == false) {
-							/* Insert new CGI record
-							 */
-							$db->insert("cgi_statistics", array(
-								"id"                    => null,
-								"timestamp_begin"       => date("Y-m-d H:i:s", (int)$timestamp_begin),
-								"timestamp_end"         => date("Y-m-d H:i:s", (int)$timestamp_end),
-								"webserver_id"          => (int)$webserver_id,
-								"hostname_id"           => (int)$hostname_id,
-								"time_0_1"              => (int)$time_0_1,
-								"time_1_3"              => (int)$time_1_3,
-								"time_3_10"             => (int)$time_3_10,
-								"time_10_x"             => (int)$time_10_x,
-								"cgi_errors"            => (int)$cgi_errors));
-						} else {
-							/* Update existing CGI record
-							 */
-							$current = $result[0];
-							$data = array(
-								"timestamp_end"         => date("Y-m-d H:i:s", (int)$timestamp_end),
-								"time_0_1"              => (int)($current["time_0_1"] + $time_0_1),
-								"time_1_3"              => (int)($current["time_1_3"] + $time_1_3),
-								"time_3_10"             => (int)($current["time_3_10"] + $time_3_10),
-								"time_10_x"             => (int)($current["time_10_x"] + $time_10_x),
-								"cgi_errors"            => (int)($current["cgi_errors"] + $cgi_errors));
-							$db->update("cgi_statistics", $current["id"], $data);
-						}
+						handle_cgi_statistics($db, $webserver_id, $field);
 						break;
-					/* Server statistic
-					 */
 					case "server":
-						list(, $timestamp_begin, $timestamp_end, $connections, $result_bad_request) = $field;
-
-						if ($result_bad_request === NULL) {
-							break;
-						}
-
-						$day = date("Y-m-d", (int)$timestamp_begin);
-						if ($day === date("Y-m-d", (int)$timestamp_end)) {
-							/* Check for existing log on same day
-							 */
-							$query = "select * from server_statistics where webserver_id=%d and ".
-									 "timestamp_begin>=%s and timestamp_end<=%s limit 1";
-							$result = $db->execute($query, $webserver_id, $day." 00:00:00", $day." 23:59:59");
-						} else {
-							/* Log overlaps midnight
-							 */
-							$result = false;
-						}
-
-						if ($result == false) {
-							/* Insert new server record
-							 */
-							$db->insert("server_statistics", array(
-								"id"                 => null,
-								"timestamp_begin"    => date("Y-m-d H:i:s", (int)$timestamp_begin),
-								"timestamp_end"      => date("Y-m-d H:i:s", (int)$timestamp_end),
-								"webserver_id"       => (int)$webserver_id,
-								"connections"        => (int)$connections,
-								"result_bad_request" => (int)$result_bad_request));
-						} else {
-							/* Update existing server record
-							 */
-							$current = $result[0];
-							$data = array(
-								"timestamp_end"      => date("Y-m-d H:i:s", (int)$timestamp_end),
-								"connections"        => (int)($current["connections"] + $connections),
-								"result_bad_request" => (int)($current["result_bad_request"] + $result_bad_request));
-							$db->update("server_statistics", $current["id"], $data);
-						}
+						handle_server_statistics($db, $webserver_id, $field);
 						break;
-					/* Host statistic
-					 */
 					case "host":
-						if (($webserver_version = get_version($db, $webserver_id)) == false) {
-							$lower_than_9_13 = true;
-						} else {
-							list($webserver_version) = explode("-", $webserver_version);
-							$lower_than_9_13 = version_compare($webserver_version, "9.13", "<");
-						}
-
-						if ($lower_than_9_13) {
-							list(, $timestamp_begin, $timestamp_end, $hostname, $requests, $bytes_sent, $bans, $exploit_attempts,
-								   $result_forbidden, $result_not_found, $result_internal_error) = $field;
-							$failed_logins = 0;
-						} else {
-							list(, $timestamp_begin, $timestamp_end, $hostname, $requests, $bytes_sent, $bans, $exploit_attempts,
-						   	    $failed_logins, $result_forbidden, $result_not_found, $result_internal_error) = $field;
-						}
-
-						if (($hostname_id = get_hostname_id($db, $hostname)) == false) {
-							print "Error getting hostname id\n";
-							continue;
-						}
-
-						$day = date("Y-m-d", (int)$timestamp_begin);
-						if ($day === date("Y-m-d", (int)$timestamp_end)) {
-							/* Check for existing log on same day
-							 */
-							$query = "select * from host_statistics where webserver_id=%d and hostname_id=%d and ".
-									 "timestamp_begin>=%s and timestamp_end<=%s limit 1";
-							$result = $db->execute($query, $webserver_id, $hostname_id, $day." 00:00:00", $day." 23:59:59");
-						} else {
-							/* Log overlaps midnight
-							 */
-							$result = false;
-						}
-
-						if ($result == false) {
-							/* Insert new host record
-							 */
-							$db->insert("host_statistics", array(
-								"id"                    => null,
-								"timestamp_begin"       => date("Y-m-d H:i:s", (int)$timestamp_begin),
-								"timestamp_end"         => date("Y-m-d H:i:s", (int)$timestamp_end),
-								"webserver_id"          => (int)$webserver_id,
-								"hostname_id"           => (int)$hostname_id,
-								"requests"              => (int)$requests,
-								"bytes_sent"            => (int)$bytes_sent,
-								"bans"                  => (int)$bans,
-								"exploit_attempts"      => (int)$exploit_attempts,
-								"failed_logins"         => (int)$failed_logins,
-								"result_forbidden"      => (int)$result_forbidden,
-								"result_not_found"      => (int)$result_not_found,
-								"result_internal_error" => (int)$result_internal_error));
-						} else {
-							/* Update existing host record
-							 */
-							$current = $result[0];
-							$data = array(
-								"timestamp_end"         => date("Y-m-d H:i:s", (int)$timestamp_end),
-								"requests"              => (int)($current["requests"] + $requests),
-								"bytes_sent"            => (int)($current["bytes_sent"] + $bytes_sent),
-								"bans"                  => (int)($current["bans"] + $bans),
-								"exploit_attempts"      => (int)($current["exploit_attempts"] + $exploit_attempts),
-								"failed_logins"         => (int)($current["failed_logins"] + $failed_logins),
-								"result_forbidden"      => (int)($current["result_forbidden"] + $result_forbidden),
-								"result_not_found"      => (int)($current["result_not_found"] + $result_not_found),
-								"result_internal_error" => (int)($current["result_internal_error"] + $result_internal_error));
-							$db->update("host_statistics", $current["id"], $data);
-						}
+						handle_host_statistics($db, $webserver_id, $field);
 						break;
-					/* Event
-					 */
 					case "event";
 						list(, $event, $timestamp) = $field;
 						log_event($db, $event, $webserver_id, (int)$timestamp);
 						break;
-					/* Version
-					 */
 					case "version":
 						list(, $version) = $field;
-						$data = array("version" => $version);
-						$db->update("webservers", $webserver_id, $data);
+						$db->update("webservers", $webserver_id, array("version" => $version));
 						break;
-					/* Rest
-					 */
 					default:
 						list($event, $timestamp) = $field;
 						log_event($db, $event, $webserver_id, (int)$timestamp);

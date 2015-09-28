@@ -8,7 +8,7 @@
 //-->
 <xsl:template match="filter">
 <div class="filter">
-<form action="/{/output/page}" method="post">
+<form action="{/output/page/@url}" method="post">
 <xsl:if test="hostnames">
 <span>Host: <select class="text filter" name="hostname" onChange="javascript:submit()">
 <xsl:for-each select="hostnames/hostname">

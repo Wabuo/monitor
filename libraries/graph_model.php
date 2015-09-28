@@ -28,10 +28,14 @@
 		}
 
 		public function get_statistics($begin, $end, $filter_hostname, $filter_webserver) {
-			$query = "select * from %S t, ".$this->from."webserver_user a ".
-			         "where t.webserver_id=a.webserver_id and a.user_id=%d ".$this->where.
-			         	"and ((timestamp_begin>%s and timestamp_begin<%s) or (timestamp_end>%s and timestamp_end<%s))";
-			$args = array($this->table, $this->user->id, $begin, $end, $begin, $end);
+			$select = "";
+			foreach ($this->columns as $column) {
+				$select .= ", sum(t.".$column.") as ".$column;
+			}
+
+			$query = "select *".$select." from %S t, ".$this->from."webserver_user a ".
+			         "where t.webserver_id=a.webserver_id and a.user_id=%d ".$this->where."and ((date>=%s and date<=%s))";
+			$args = array($this->table, $this->user->id, $begin, $end);
 
 			if ($this->hostnames && ($filter_hostname != 0)) {
 				$query .= " and t.hostname_id=%d";
@@ -42,10 +46,7 @@
 				array_push($args, $filter_webserver);
 			}
 
-			$query .= " limit %d,%d";
-
-			$timestamp_begin = strtotime($begin." 00:00:00");
-			$timestamp_end = strtotime($end." 00:00:00");
+			$query .= " group by date limit %d,%d";
 
 			$stats = array();
 			foreach ($this->columns as $column) {
@@ -53,8 +54,9 @@
 			}
 
 			$result = array();
-			$timestamp = $timestamp_begin;
-			while ($timestamp < $timestamp_end) {
+			$timestamp = strtotime($begin." 00:00:00");
+			$timestamp_end = strtotime($end." 00:00:00");
+			while ($timestamp <= $timestamp_end) {
 				$day = date("Y-m-d", $timestamp);
 				$result[$day] = $stats;
 				$timestamp += DAY;
@@ -69,58 +71,14 @@
 				}
 
 				foreach ($entries as $entry) {
-					$entry["timestamp_begin"] = strtotime($entry["timestamp_begin"]);
-					$entry["timestamp_end"] = strtotime($entry["timestamp_end"]);
-
-					$day = date("Y-m-d", $entry["timestamp_begin"]);
-					$day_end = date("Y-m-d", $entry["timestamp_end"]);
-
-					if ($day == $day_end) {
-						/* Entry within one day
-						 */
-						$percentage = 1;
-					} else if ($entry["timestamp_begin"] < $timestamp_begin) {
-						/* Entry begins before begin time
-						 */
-						if (($timespan = $entry["timestamp_end"] - $entry["timestamp_begin"]) == 0) {
-							continue;
-						}
-						$percentage = ($entry["timestamp_end"] - $timestamp_begin) / $timespan;
-						$day = $day_end;
-					} else if ($entry["timestamp_end"] > $timestamp_end) {
-						/* Entry ends after end time
-						 */
-						if (($timespan = $entry["timestamp_end"] - $entry["timestamp_begin"]) == 0) {
-							continue;
-						}
-						$percentage = ($timestamp_end - $entry["timestamp_begin"]) / $timespan;
-					} else {
-						/* Entry spans two days
-						 */
-						if (($timespan = $entry["timestamp_end"] - $entry["timestamp_begin"]) == 0) {
-							continue;
-						}
-						$break = strtotime($day_end." 00:00:00");
-						$percentage = ($break - $entry["timestamp_begin"]) / $timespan;
-
-						foreach ($this->columns as $column) {
-							$result[$day_end][$column] += (1 - $percentage) * $entry[$column];
-						}
-					}
-
 					foreach ($this->columns as $column) {
-						$result[$day][$column] += $percentage * $entry[$column];
+						$result[$entry["date"]][$column] = $entry[$column];
 					}
 				}
 
 				$offset += $limit;
-			} while (count($entries) > 0);
+			} while (count($entries) == $limit);
 
-			foreach ($result as $d => $day) {
-				foreach ($day as $v => $value) {
-					$result[$d][$v] = round($value);
-				}
-			}
 			ksort($result);
 
 			return $result;
@@ -138,19 +96,52 @@
 			return $number;
 		}
 
-		public function get_day_information($column, $timestamp, $filter_hostname, $filter_webserver) {
+		public function get_day_statistics($column, $date, $filter_hostname, $filter_webserver) {
 			if (in_array($column, $this->columns) == false) {
 				return false;
 			}
 
-			$begin = date("Y-m-d 00:00:00", $timestamp);
-			$end = date("Y-m-d 23:59:59", $timestamp);
+			$query = "select sum(t.%S) as count, hour from %S t, ".$this->from."webservers w, webserver_user a ".
+			         "where t.webserver_id=w.id and w.id=a.webserver_id and a.user_id=%d ".$this->where."and date=%s ";
+			$args = array($column, $this->table, $this->user->id, $date);
+
+			if ($this->hostnames && ($filter_hostname != 0)) {
+				$query .= "and t.hostname_id=%d ";
+				array_push($args, $filter_hostname);
+			}
+			if ($filter_webserver != 0) {
+				$query .= "and t.webserver_id=%d ";
+				array_push($args, $filter_webserver);
+			}
+
+			$query .= "group by t.hour order by hour";
+
+			if (($result = $this->db->execute($query, $args)) === false) {	
+				return false;
+			}
+
+			$stats = array();
+			for ($i = 0; $i < 24; $i++) {
+				$stats[$i] = 0;
+			}
+
+			foreach ($result as $item) {
+				$stats[$item["hour"]] = $item["count"];
+			}
+
+			return $stats;
+		}
+
+		public function get_day_information($column, $date, $filter_hostname, $filter_webserver) {
+			if (in_array($column, $this->columns) == false) {
+				return false;
+			}
 
 			$query = "select sum(t.%S) as count, ".$this->select."w.name as webserver ".
 			         "from %S t, ".$this->from."webservers w, webserver_user a ".
 			         "where t.webserver_id=w.id and w.id=a.webserver_id and a.user_id=%d ".$this->where.
-			         	"and timestamp_begin>=%s and timestamp_begin<=%s and %S>0 ";
-			$args = array($column, $this->table, $this->user->id, $begin, $end, $column);
+			         	"and date=%s and %S>0 ";
+			$args = array($column, $this->table, $this->user->id, $date, $column);
 
 			if ($this->hostnames && ($filter_hostname != 0)) {
 				$query .= "and t.hostname_id=%d ";

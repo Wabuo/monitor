@@ -48,6 +48,10 @@ div.graph table td div.weekend {
 	background-color:#c00000;
 }
 
+div.graph table td div.hour {
+	background-color:#ff0000;
+}
+
 div.graph table td:hover div {
 	background-color:#ffa000;
 }

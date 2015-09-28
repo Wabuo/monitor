@@ -18,22 +18,28 @@
 					"Pages"         => array("cms/page", "page.png"),
 					"Webservers"    => array("cms/webserver", "webserver.png")));
 
-			if (($this->user->id == 1) && ($this->user->password == "610706e9a48f85476e04d270bd6dc7492cdcd9ad7e91878007dff629ab11f195")) {
-				$this->output->add_system_warning("Don't forget to change the password of the admin account!");
-			}
+			/* Show warnings
+			 */
+			if ($this->user->is_admin) {
+				if (($this->user->id == 1) && ($this->user->password == "610706e9a48f85476e04d270bd6dc7492cdcd9ad7e91878007dff629ab11f195")) {
+					$this->output->add_system_warning("Don't forget to change the password of the admin account!");
+				}
 
-			if ($this->settings->secret_website_code == "CHANGE_ME_INTO_A_RANDOM_STRING") {
-				$this->output->add_system_warning("Don't forget to change the secret_website_code setting.");
-			}
+				if ($this->settings->secret_website_code == "CHANGE_ME_INTO_A_RANDOM_STRING") {
+					$this->output->add_system_warning("Don't forget to change the secret_website_code setting.");
+				}
 
-			if (is_true(DEBUG_MODE)) {
-				$this->output->add_system_warning("Website is running in debug mode. Set DEBUG_MODE in settings/website.conf to 'no'.");
+				if (is_true(DEBUG_MODE)) {
+					$this->output->add_system_warning("Website is running in debug mode. Set DEBUG_MODE in settings/website.conf to 'no'.");
+				}
 			}
 
 			if ($this->page->pathinfo[1] != null) {	
 				$this->output->add_system_warning("The administration module '%s' does not exist.", $this->page->pathinfo[1]);
 			}
 
+			/* Show icons
+			 */
 			if (is_false(MULTILINGUAL)) {
 				unset($menu["Content"]["Languages"]);
 			}

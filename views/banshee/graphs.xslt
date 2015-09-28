@@ -8,7 +8,6 @@
 //
 //-->
 <xsl:template match="day">
-<div class="date"><xsl:value-of select="@day" /></div>
 <table class="table table-striped table-condensed table-xs">
 <thead>
 <tr>

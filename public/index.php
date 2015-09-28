@@ -31,13 +31,6 @@
 		$_language = new language($_database, $_page, $_output);
 	}
 
-	/* Logging
-	 */
-	if (library_exists("logging") && ($_user->is_admin == false)) {
-		$logging = new logging($_database, $_page);
-		$logging->execute();
-	}
-
 	/* Prevent Cross-Site Request Forgery
 	 */
 	prevent_csrf($_output, $_user);
@@ -53,16 +46,6 @@
 	 */
 	if (file_exists($file = "../models/".$_page->module.".php")) {
 		include($file);
-
-		/* Set output type for API modules
-		 */
-		$model_class = str_replace("/", "_", $_page->module)."_model";
-		if (class_exists($model_class)) {
-			if (is_subclass_of($model_class, "api_model")) {
-				$_output->mode = API_OUTPUT_TYPE;
-				$_output->add_layout_data = false;
-			}
-		}
 	}
 
 	/* Add layout data to output XML
@@ -196,7 +179,7 @@
 	/* Output content
 	 */
 	$output = $_output->generate();
-	if (($last_errors = ob_get_clean()) != "") {
+    if ((($last_errors = ob_get_clean()) != "") && ($_page->module != "setup")) {
 		header("Content-Type: text/plain");
 		print "Fatal error:\n";
 		print $last_errors;

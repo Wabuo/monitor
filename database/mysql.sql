@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 5.5.43, for debian-linux-gnu (x86_64)
+-- MySQL dump 10.13  Distrib 5.5.44, for debian-linux-gnu (x86_64)
 --
 -- Host: localhost    Database: hiawatha_monitor
 -- ------------------------------------------------------
--- Server version	5.5.43-0ubuntu0.14.04.1
+-- Server version	5.5.44-0ubuntu0.14.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -39,8 +39,8 @@ DROP TABLE IF EXISTS `cgi_statistics`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `cgi_statistics` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `timestamp_begin` datetime NOT NULL,
-  `timestamp_end` datetime NOT NULL,
+  `date` date NOT NULL,
+  `hour` tinyint(3) unsigned NOT NULL,
   `webserver_id` int(11) unsigned NOT NULL,
   `hostname_id` int(11) unsigned NOT NULL,
   `time_0_1` int(10) unsigned NOT NULL,
@@ -51,6 +51,8 @@ CREATE TABLE `cgi_statistics` (
   PRIMARY KEY (`id`),
   KEY `webserver_id` (`webserver_id`),
   KEY `hostname_id` (`hostname_id`),
+  KEY `date` (`date`),
+  KEY `hour` (`hour`),
   CONSTRAINT `cgi_statistics_ibfk_1` FOREIGN KEY (`webserver_id`) REFERENCES `webservers` (`id`),
   CONSTRAINT `cgi_statistics_ibfk_2` FOREIGN KEY (`hostname_id`) REFERENCES `hostnames` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -83,8 +85,8 @@ DROP TABLE IF EXISTS `host_statistics`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `host_statistics` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `timestamp_begin` datetime NOT NULL,
-  `timestamp_end` datetime NOT NULL,
+  `date` date NOT NULL,
+  `hour` tinyint(3) unsigned NOT NULL,
   `webserver_id` int(10) unsigned NOT NULL,
   `hostname_id` int(10) unsigned NOT NULL,
   `requests` int(11) unsigned NOT NULL,
@@ -98,6 +100,8 @@ CREATE TABLE `host_statistics` (
   PRIMARY KEY (`id`),
   KEY `webserver_id` (`webserver_id`),
   KEY `hostname_id` (`hostname_id`),
+  KEY `date` (`date`),
+  KEY `hour` (`hour`),
   CONSTRAINT `host_statistics_ibfk_1` FOREIGN KEY (`webserver_id`) REFERENCES `webservers` (`id`),
   CONSTRAINT `host_statistics_ibfk_2` FOREIGN KEY (`hostname_id`) REFERENCES `hostnames` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -141,7 +145,7 @@ CREATE TABLE `menu` (
 
 LOCK TABLES `menu` WRITE;
 /*!40000 ALTER TABLE `menu` DISABLE KEYS */;
-INSERT INTO `menu` VALUES (1,0,0,'Dashboard','/dashboard'),(2,0,0,'Request statistics','/request_statistics'),(3,0,0,'Security statistics','/security_statistics'),(4,0,0,'CGI statistics','/cgi_statistics'),(5,0,0,'Server statistics','/server_statistics'),(6,0,0,'Events','/events'),(7,0,0,'Logout','/logout');
+INSERT INTO `menu` VALUES (1,0,0,'Dashboard','/'),(2,0,0,'Request statistics','/request_statistics'),(3,0,0,'Security statistics','/security_statistics'),(4,0,0,'CGI statistics','/cgi_statistics'),(5,0,0,'Server statistics','/server_statistics'),(6,0,0,'Events','/events'),(7,0,0,'Logout','/logout');
 /*!40000 ALTER TABLE `menu` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -236,7 +240,6 @@ CREATE TABLE `roles` (
   `cms/file` tinyint(4) DEFAULT '0',
   `cms/language` tinyint(4) DEFAULT '0',
   `cms/menu` tinyint(4) DEFAULT '0',
-  `cms/organisation` tinyint(4) DEFAULT '0',
   `cms/page` tinyint(4) DEFAULT '0',
   `cms/role` tinyint(4) DEFAULT '0',
   `cms/settings` tinyint(4) DEFAULT '0',
@@ -255,7 +258,7 @@ CREATE TABLE `roles` (
 
 LOCK TABLES `roles` WRITE;
 /*!40000 ALTER TABLE `roles` DISABLE KEYS */;
-INSERT INTO `roles` VALUES (1,'Administrator',1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1),(2,'Webmaster',1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,1,0);
+INSERT INTO `roles` VALUES (1,'Administrator',1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1),(2,'Webmaster',1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,1,0);
 /*!40000 ALTER TABLE `roles` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -268,13 +271,15 @@ DROP TABLE IF EXISTS `server_statistics`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `server_statistics` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `timestamp_begin` datetime NOT NULL,
-  `timestamp_end` datetime NOT NULL,
+  `date` date NOT NULL,
+  `hour` tinyint(3) unsigned NOT NULL,
   `webserver_id` int(10) unsigned NOT NULL,
   `connections` int(10) unsigned NOT NULL,
   `result_bad_request` int(10) unsigned NOT NULL,
   PRIMARY KEY (`id`),
   KEY `webserver_id` (`webserver_id`),
+  KEY `date` (`date`),
+  KEY `hour` (`hour`),
   CONSTRAINT `server_statistics_ibfk_1` FOREIGN KEY (`webserver_id`) REFERENCES `webservers` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -321,7 +326,7 @@ CREATE TABLE `settings` (
 
 LOCK TABLES `settings` WRITE;
 /*!40000 ALTER TABLE `settings` DISABLE KEYS */;
-INSERT INTO `settings` VALUES (1,'admin_page_size','integer','25'),(2,'page_after_login','string','dashboard'),(3,'start_page','string','dashboard'),(4,'webmaster_email','string','root@localhost'),(5,'head_title','string','Hiawatha Monitor'),(6,'head_description','string','Security and performance monitoring tool for the Hiawatha webserver.'),(7,'head_keywords','string','monitor, hiawatha'),(34,'default_language','string','en'),(42,'session_persistent','boolean','false'),(38,'event_page_size','integer','25'),(39,'top_connections','integer','15'),(43,'session_timeout','integer','1200'),(44,'hiawatha_cache_enabled','boolean','false'),(45,'secret_website_code','string','CHANGE_ME_INTO_A_RANDOM_STRING'),(46,'hiawatha_cache_default_time','integer','3600');
+INSERT INTO `settings` VALUES (1,'admin_page_size','integer','25'),(2,'page_after_login','string','dashboard'),(3,'start_page','string','dashboard'),(4,'webmaster_email','string','root@localhost'),(5,'head_title','string','Hiawatha Monitor'),(6,'head_description','string','Security and performance monitoring tool for the Hiawatha webserver.'),(7,'head_keywords','string','monitor, hiawatha'),(34,'default_language','string','en'),(42,'session_persistent','boolean','true'),(38,'event_page_size','integer','25'),(39,'top_connections','integer','15'),(46,'hiawatha_cache_default_time','integer','3600'),(43,'session_timeout','integer','38400'),(44,'hiawatha_cache_enabled','boolean','false'),(45,'secret_website_code','string','CHANGE_ME_INTO_A_RANDOM_STRING'),(55,'dashboard_page_refresh','integer','1'),(48,'report_history_days','integer','15'),(49,'report_alert_medium','integer','150'),(50,'report_alert_high','float','3'),(51,'report_use_median','boolean','true'),(52,'report_skip_normal','boolean','true'),(53,'dashboard_threshold_change','integer','150'),(54,'dashboard_threshold_value','integer','10'),(56,'database_version','integer','103');
 /*!40000 ALTER TABLE `settings` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -385,7 +390,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,1,'admin','610706e9a48f85476e04d270bd6dc7492cdcd9ad7e91878007dff629ab11f195',NULL,0,1,'Administrator','root@localhost','','none',0);
+INSERT INTO `users` VALUES (1,1,'admin','610706e9a48f85476e04d270bd6dc7492cdcd9ad7e91878007dff629ab11f195',NULL,NULL,1,'Administrator','root@localhost','','none',0);
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -436,4 +441,4 @@ CREATE TABLE `webservers` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2015-06-14 17:23:58
+-- Dump completed on 2015-09-03 12:53:26

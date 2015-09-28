@@ -24,27 +24,6 @@
 
 <!--
 //
-//  List template
-//
-//-->
-<xsl:template match="list">
-<xsl:if test="item">
-	<div class="panel panel-default top-alert">
-	<div class="panel-heading"><xsl:value-of select="@title" /></div>
-	<div class="panel-body"><table>
-	<xsl:for-each select="item">
-		<tr>
-		<td><xsl:value-of select="." /></td>
-		<td><xsl:value-of select="@count" /></td>
-		</tr>
-	</xsl:for-each>
-	</table></div>
-	</div>
-</xsl:if>
-</xsl:template>
-
-<!--
-//
 //  Content template
 //
 //-->
@@ -57,8 +36,13 @@
 </div>
 
 <div class="col-sm-6">
-<h2>Alerts for today</h2>
-<xsl:apply-templates select="list" />
+<h2>Alerts for today<span>[<a href="javascript:return false" id="opener">?</a>]</span></h2>
+<div id="dialog" title="Percentages">
+<p>The shown percentages represent the surpluse value for the current day, compared to the median for the previous days.</p>
+<p>So, when the median for the previous days is 200 and the value for the current day is 300, the percentage is 50%. Because (300-200)/200 * 100% = 50%.</p>
+<p>The current time is taken into account when calculating the median for the previous days. Only count values starting at <xsl:value-of select="threshold_value" /> and percentages starting at <xsl:value-of select="threshold_change" />% are shown. The alerts are refreshed every <xsl:if test="page_refresh>1"><xsl:value-of select="page_refresh" /></xsl:if> minute<xsl:if test="page_refresh>1">s</xsl:if>.</p>
+</div>
+<div class="alerts" refresh="{page_refresh}"></div>
 </div>
 </div>
 
