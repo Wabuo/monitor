@@ -81,7 +81,7 @@
 
 		/* Store data in cache
 		 *
-		 * INPUT:  string key, string value[, int timeout]
+		 * INPUT:  string key, mixed value[, int timeout]
 		 * OUTPUT: true
 		 * ERROR:  false
 		 */

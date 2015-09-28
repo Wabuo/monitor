@@ -7,7 +7,7 @@
 	define("SKIP_NORMAL", false);
 
 	chdir(dirname($argv[0]));
-	require("../libraries/configuration.php");
+	require("../libraries/banshee.php");
 	require("../libraries/security.php");
 
 	/* Dummy user class
@@ -39,6 +39,10 @@
 			parent::__construct($db, null, $user, null, null);
 		}
 	}
+
+	/* Main program
+	 */
+	error_reporting(E_ALL & ~E_NOTICE);
 
 	/* Connect to database
 	 */
@@ -229,6 +233,10 @@
 		return $report;
 	}
 
+	/* Main program
+	 */
+	error_reporting(E_ALL & ~E_NOTICE);
+
 	/* Select users which want to receive daily reports
 	 */
 	if (count($argv) > 1) {
@@ -251,7 +259,7 @@
 	}
 
 	$query = "select * from webservers w, webserver_user l ".
-	         "where w.id=l.webserver_id and l.user_id=%d";
+	         "where w.id=l.webserver_id and l.user_id=%d order by w.name";
 	foreach ($users as $user) {
 		if (($webservers = $db->execute($query, $user["id"])) == false) {
 			continue;
@@ -269,7 +277,7 @@
 
 		$count = count($report_alerts);
 		if ($count == 0) {
-			$report_alerts = "-";
+			$report_alerts = "none";
 		} else {
 			if ($count >= 2) {
 				$last = " and ".array_pop($report_alerts);

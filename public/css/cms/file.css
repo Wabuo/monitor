@@ -1,0 +1,20 @@
+table.table th:nth-child(3) {
+	width:100px;
+}
+
+table.table th:nth-child(4) {
+	width:80px;
+}
+
+@media (max-width:767px) {
+	table.table th:nth-child(2),
+	table.table td:nth-child(2),
+	table.table th:nth-child(3),
+	table.table td:nth-child(3) {
+		display:none;
+	}
+}
+
+input[type=file] {
+	padding:0px;
+}

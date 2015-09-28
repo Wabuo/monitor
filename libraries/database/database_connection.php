@@ -92,8 +92,8 @@
 
 		/* Flatten array to new array with depth 1
 		 *
-		 * INPUT:  array
-		 * OUTPUT: array
+		 * INPUT:  array data
+		 * OUTPUT: array data
 		 * ERROR:  -
 		 */
 		protected function flatten_array($data) {
@@ -155,7 +155,7 @@
 		 * OUTPUT: string printf format
 		 * ERROR:  -
 		 */
-		protected function type_to_format($variable) {
+		private function type_to_format($variable) {
 			if (is_integer($variable)) {
 				return "%d";
 			}
@@ -250,7 +250,7 @@
 				$parts = explode(" ", ltrim($args[0]), 2);
 				$statement = strtolower(array_shift($parts));
 				if (in_array($statement, array("select", "show")) == false) {
-					print "Dropped query that tried to change the database via a read-only database connection.\n";
+					print "Dropped query that tried to alter the database via a read-only database connection.\n";
 					return false;
 				}
 			}
@@ -347,8 +347,8 @@
 		 */
 		public function execute_cached() {
 			$args = func_get_args();
-			$cache_db = array_shift($args);
-			$hash = md5(json_encode($args));
+			$cache_db = array_unshift($args);
+			$hash = sha1(json_encode($args));
 
 			$cache = new cache($cache_db, "database_cache");
 
@@ -359,7 +359,6 @@
 
 				if (is_array($result)) {
 					if (count($result) > 1) {
-						$timeout = defined(CACHE_TIMEOUT) ? CACHE_TIMEOUT : 3600;
 						$cache->$hash = $result;
 					}
 				}
@@ -487,8 +486,7 @@
 					array_push($values, $key);
 				} else {
 					array_push($format, "%S=".$this->type_to_format($data[$key]));
-					array_push($values, $key);
-					array_push($values, $data[$key]);
+					array_push($values, $key, $data[$key]);
 				}
 			}
 

@@ -1,20 +1,7 @@
-table.edit {
-	margin-bottom:10px;
+span.blank {
+	margin-left:10px;
 }
 
-input.text, select.text {
-	width:300px;
-}
-
-input.button {
-	margin-right:10px;
-}
-
-h2 {
-	margin-top:30px;
-}
-
-table.list {
-	margin-top:15px;
-	width:100%;
+input[type=checkbox] {
+	margin-left:5px;
 }

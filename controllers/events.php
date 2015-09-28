@@ -9,6 +9,8 @@
 				$_SERVER["hide_ss"] = is_true($_POST["hide_ss"]);
 			}
 
+			$this->output->add_css("banshee/filter.css");
+
 			$filter = new filter($this->db, $this->output, $this->user);
 			$filter->to_output($this->model->table, false);
 

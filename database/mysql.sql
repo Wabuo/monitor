@@ -146,6 +146,32 @@ INSERT INTO `menu` VALUES (1,0,0,'Dashboard','/dashboard'),(2,0,0,'Request stati
 UNLOCK TABLES;
 
 --
+-- Table structure for table `organisations`
+--
+
+DROP TABLE IF EXISTS `organisations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `organisations` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(50) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`),
+  UNIQUE KEY `name_2` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `organisations`
+--
+
+LOCK TABLES `organisations` WRITE;
+/*!40000 ALTER TABLE `organisations` DISABLE KEYS */;
+INSERT INTO `organisations` VALUES (1,'My organisation');
+/*!40000 ALTER TABLE `organisations` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `page_access`
 --
 
@@ -197,25 +223,27 @@ CREATE TABLE `roles` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(25) NOT NULL,
   `profile` tinyint(4) DEFAULT '0',
-  `admin` tinyint(4) DEFAULT '0',
-  `admin/file` tinyint(4) DEFAULT '0',
-  `admin/menu` tinyint(4) DEFAULT '0',
-  `admin/page` tinyint(4) DEFAULT '0',
-  `admin/role` tinyint(4) DEFAULT '0',
-  `admin/switch` tinyint(4) DEFAULT '0',
-  `admin/user` tinyint(4) DEFAULT '0',
-  `admin/access` tinyint(4) DEFAULT '0',
-  `admin/action` tinyint(4) DEFAULT '0',
-  `admin/webserver` tinyint(4) DEFAULT '0',
-  `server_statistics` tinyint(4) DEFAULT '0',
-  `admin/hostname` tinyint(4) DEFAULT '0',
-  `admin/settings` tinyint(4) DEFAULT '0',
   `session` tinyint(4) DEFAULT '0',
-  `events` tinyint(4) DEFAULT '0',
-  `cgi_statistics` tinyint(4) DEFAULT '0',
-  `security_statistics` tinyint(4) DEFAULT '0',
-  `request_statistics` tinyint(4) DEFAULT '0',
   `dashboard` tinyint(4) DEFAULT '0',
+  `request_statistics` tinyint(4) DEFAULT '0',
+  `security_statistics` tinyint(4) DEFAULT '0',
+  `cgi_statistics` tinyint(4) DEFAULT '0',
+  `server_statistics` tinyint(4) DEFAULT '0',
+  `events` tinyint(4) DEFAULT '0',
+  `cms` tinyint(4) DEFAULT '0',
+  `cms/access` tinyint(4) DEFAULT '0',
+  `cms/action` tinyint(4) DEFAULT '0',
+  `cms/file` tinyint(4) DEFAULT '0',
+  `cms/language` tinyint(4) DEFAULT '0',
+  `cms/menu` tinyint(4) DEFAULT '0',
+  `cms/organisation` tinyint(4) DEFAULT '0',
+  `cms/page` tinyint(4) DEFAULT '0',
+  `cms/role` tinyint(4) DEFAULT '0',
+  `cms/settings` tinyint(4) DEFAULT '0',
+  `cms/switch` tinyint(4) DEFAULT '0',
+  `cms/user` tinyint(4) DEFAULT '0',
+  `cms/hostname` tinyint(4) DEFAULT '0',
+  `cms/webserver` tinyint(4) DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -227,7 +255,7 @@ CREATE TABLE `roles` (
 
 LOCK TABLES `roles` WRITE;
 /*!40000 ALTER TABLE `roles` DISABLE KEYS */;
-INSERT INTO `roles` VALUES (1,'Administrator',1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1),(2,'Webmaster',1,1,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,1,1,1);
+INSERT INTO `roles` VALUES (1,'Administrator',1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1),(2,'Webmaster',1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,1,0);
 /*!40000 ALTER TABLE `roles` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -293,7 +321,7 @@ CREATE TABLE `settings` (
 
 LOCK TABLES `settings` WRITE;
 /*!40000 ALTER TABLE `settings` DISABLE KEYS */;
-INSERT INTO `settings` VALUES (1,'admin_page_size','integer','25'),(2,'page_after_login','string','dashboard'),(3,'start_page','string','dashboard'),(4,'webmaster_email','string','root@localhost'),(5,'head_title','string','Hiawatha Monitor'),(6,'head_description','string','Security and performance monitoring tool for the Hiawatha webserver.'),(7,'head_keywords','string','monitor, hiawatha'),(34,'default_language','string','en'),(38,'event_page_size','integer','25'),(39,'top_connections','integer','15');
+INSERT INTO `settings` VALUES (1,'admin_page_size','integer','25'),(2,'page_after_login','string','dashboard'),(3,'start_page','string','dashboard'),(4,'webmaster_email','string','root@localhost'),(5,'head_title','string','Hiawatha Monitor'),(6,'head_description','string','Security and performance monitoring tool for the Hiawatha webserver.'),(7,'head_keywords','string','monitor, hiawatha'),(34,'default_language','string','en'),(42,'session_persistent','boolean','false'),(38,'event_page_size','integer','25'),(39,'top_connections','integer','15'),(43,'session_timeout','integer','1200'),(44,'hiawatha_cache_enabled','boolean','false'),(45,'secret_website_code','string','CHANGE_ME_INTO_A_RANDOM_STRING'),(46,'hiawatha_cache_default_time','integer','3600');
 /*!40000 ALTER TABLE `settings` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -333,9 +361,11 @@ DROP TABLE IF EXISTS `users`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `users` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `organisation_id` int(10) unsigned NOT NULL,
   `username` varchar(15) CHARACTER SET latin1 COLLATE latin1_general_cs NOT NULL,
-  `password` varchar(35) NOT NULL DEFAULT '',
+  `password` varchar(128) NOT NULL,
   `one_time_key` varchar(50) DEFAULT NULL,
+  `cert_serial` int(10) unsigned DEFAULT NULL,
   `status` tinyint(4) unsigned NOT NULL DEFAULT '0',
   `fullname` varchar(50) NOT NULL DEFAULT '',
   `email` varchar(50) NOT NULL DEFAULT '',
@@ -343,7 +373,9 @@ CREATE TABLE `users` (
   `notification_method` enum('none','prowl','nma','email') NOT NULL,
   `daily_report` tinyint(1) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `username` (`username`)
+  UNIQUE KEY `username` (`username`),
+  KEY `organisation_id` (`organisation_id`),
+  CONSTRAINT `users_ibfk_1` FOREIGN KEY (`organisation_id`) REFERENCES `organisations` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -353,7 +385,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'admin','08b5411f848a2581a41672a759c87380',NULL,1,'Administrator','root@localhost','','none',0);
+INSERT INTO `users` VALUES (1,1,'admin','610706e9a48f85476e04d270bd6dc7492cdcd9ad7e91878007dff629ab11f195',NULL,0,1,'Administrator','root@localhost','','none',0);
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -404,4 +436,4 @@ CREATE TABLE `webservers` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2015-05-10 15:22:36
+-- Dump completed on 2015-06-14 17:23:58

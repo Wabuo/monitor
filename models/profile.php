@@ -31,37 +31,39 @@
 		}
 
 		public function profile_oke($profile) {
-			global $notification_methods;
-
 			$result = true;
 
+			if (valid_email($profile["email"]) == false) {
+				$this->output->add_message("Invalid e-mail address.");
+				$result = false;
+			} else if (($check = $this->db->entry("users", $profile["email"], "email")) != false) {
+				if ($check["id"] != $this->user->id) {
+					$this->output->add_message("E-mail address already exists.");
+					$result = false;
+				}
+			}
+
+			$password_set = $profile["password"] != "";
+
 			if (is_false($profile["password_hashed"])) {
-				$profile["current"]  = md5($profile["current"]);
-				$profile["password"] = md5($profile["password"]);
-				$profile["repeat"]   = md5($profile["repeat"]);
+				$profile["current"]  = hash(PASSWORD_HASH, $profile["current"].hash(PASSWORD_HASH, $this->user->username));
+				$profile["password"] = hash(PASSWORD_HASH, $profile["password"].hash(PASSWORD_HASH, $this->user->username));
+				$profile["repeat"]   = hash(PASSWORD_HASH, $profile["repeat"].hash(PASSWORD_HASH, $this->user->username));
 			}
 
 			if ($profile["current"] != $this->user->password) {
-				$this->output->add_message("Password is incorrect.");
+				$this->output->add_message("Current password is incorrect.");
 				$result = false;
 			}
 
-			if ($profile["password"] != $profile["repeat"]) {
-				$this->output->add_message("New passwords do not match.");
-				$result = false;
-			}
-
-			if ($this->user->password == $profile["password"]) {
-				$this->output->add_message("New password must be different from current password.");
-				$result = false;
-			}
-
-			if (in_array($profile["notification_method"], array_keys($notification_methods)) == false) {
-				$this->output->add_message("Invalid notification method.");
-				$result = false;
-			} else if (($profile["notification_method"] != "none") && ($profile["notification_key"] == "")) {
-				$this->output->add_message("Specify a notification key.");
-				$result = false;
+			if ($password_set) {
+				if ($profile["password"] != $profile["repeat"]) {
+					$this->output->add_message("New passwords do not match.");
+					$result = false;
+				} else if ($this->user->password == $profile["password"]) {
+					$this->output->add_message("New password must be different from current password.");
+					$result = false;
+				}
 			}
 
 			return $result;
@@ -75,12 +77,13 @@
 				array_push($keys, "password");
 				array_push($keys, "status");
 				if (is_false($profile["password_hashed"])) {
-					$profile["password"]  = md5($profile["password"]);
+					$profile["password"] = hash(PASSWORD_HASH, $profile["password"].hash(PASSWORD_HASH, $this->user->username));
 				}
 			}
+
 			$profile["daily_report"] = is_true($profile["daily_report"]) ? YES : NO;
 
-			return $this->db->update("users", $this->user->id, $profile, $keys);
+			return $this->db->update("users", $this->user->id, $profile, $keys) !== false;
 		}
 	}
 ?>

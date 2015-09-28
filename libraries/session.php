@@ -10,23 +10,25 @@
 
 	final class session {
 		private $db = null;
+		private $settings = null;
 		private $id = null;
 		private $session_id = null;
 		private $use_database = null;
 
 		/* Constructor
 		 *
-		 * INPUT:  object database
+		 * INPUT:  object database, objection settings
 		 * OUTPUT: -
 		 * ERROR:  -
 		 */
-		public function __construct($db) {
+		public function __construct($db, $settings) {
 			$this->db = $db;
+			$this->settings = $settings;
 
 			if ($_SERVER["HTTP_X_BANSHEE_SESSION"] == "disk") {
 				$this->use_database = false;
 			} else {
-				$this->use_database = (SESSION_TIMEOUT >= ini_get("session.gc_maxlifetime"));
+				$this->use_database = ($this->settings->session_timeout >= ini_get("session.gc_maxlifetime"));
 			}
 
 			if ($this->use_database) {
@@ -55,8 +57,8 @@
 			$session_data = array(
 				"content"    => json_encode($_SESSION),
 				"ip_address" => $_SERVER["REMOTE_ADDR"]);
-			if (is_false(SESSION_PERSISTENT)) {
-				$session_data["expire"] = date("Y-m-d H:i:s", time() + SESSION_TIMEOUT);
+			if (is_true($this->settings->session_persistent) == false) {
+				$session_data["expire"] = date("Y-m-d H:i:s", time() + $this->settings->session_timeout);
 			}
 
 			$this->db->update("sessions", $this->id, $session_data);
@@ -110,11 +112,11 @@
 					}
 				}
 			} else {
-				/* Use PHP's session handling 
+				/* Use PHP's session handling
 				 */
 				session_name(SESSION_NAME);
-				if (is_true(SESSION_PERSISTENT)) {
-					session_set_cookie_params(SESSION_TIMEOUT);
+				if (is_true($this->settings->session_persistent)) {
+					session_set_cookie_params($this->settings->session_timeout);
 				}
 
 				if (ctype_print($_COOKIE[SESSION_NAME]) == false) {
@@ -141,14 +143,14 @@
 			/* Create new session id
 			 */
 			$attempts = 3;
-			$query = "select * from sessions where session_id=%s";
+			$query = "select id from sessions where session_id=%s";
 
 			do {
 				if ($attempts-- == 0) {
 					return false;
 				}
 
-				$session_id = random_string();
+				$session_id = random_string(100);
 
 				if (($result = $this->db->execute($query, $session_id)) === false) {
 					return false;
@@ -161,7 +163,7 @@
 				"id"         => null,
 				"session_id" => $session_id,
 				"content"    => null,
-				"expire"     => date("Y-m-d H:i:s", time() + SESSION_TIMEOUT),
+				"expire"     => date("Y-m-d H:i:s", time() + $this->settings->session_timeout),
 				"user_id"    => null,
 				"ip_address" => $_SERVER["REMOTE_ADDR"],
 				"name"       => null);
@@ -175,8 +177,8 @@
 
 			/* Place session id in cookie
 			 */
-			$timeout = is_true(SESSION_PERSISTENT) ? time() + SESSION_TIMEOUT : null;
-			setcookie(SESSION_NAME, $this->session_id, $timeout, "/");
+			$timeout = is_true($this->settings->session_persistent) ? time() + $this->settings->session_timeout : null;
+			setcookie(SESSION_NAME, $this->session_id, $timeout, "/", "", is_true(ENFORCE_HTTPS), true);
 			$_COOKIE[SESSION_NAME] = $this->session_id;
 
 			return true;

@@ -20,7 +20,7 @@
 		private $is_public = true;
 		private $pathinfo = array();
 		private $parameters = array();
-		private $ajax_request = null;
+		private $ajax_request = false;
 
 		/* Constructor
 		 *
@@ -32,44 +32,41 @@
 			$this->db = $db;
 			$this->settings = $settings;
 			$this->user = $user;
-			$this->ajax_request = $_ENV["HTTP_X_REQUESTED_WITH"] == "XMLHttpRequest";
-			if ($_GET["output"] == "ajax") {
-				if (is_true(DEBUG_MODE)) {
-					$this->ajax_request = true;
-					$_GET["output"] = "xml";
-				} else {	
-					unset($_GET["output"]);
-				}
-			}
 
-			/* Prevent Cross-Site Request Forgery
+			/* AJAX request
 			 */
-			if (($_SERVER["REQUEST_METHOD"] == "POST") && isset($_SERVER["HTTP_REFERER"])) {
-				list($protocol,, $referer_host) = explode("/", $_SERVER["HTTP_REFERER"], 4);
-				list($referer_host) = explode(":", $referer_host, 2);
-				if ((($protocol == "http:") || ($protocol == "https:")) && ($_SERVER["HTTP_HOST"] != $referer_host)) {
-					$this->user->log_action("CSRF attempt from %s blocked", $_SERVER["HTTP_REFERER"]);
-					$this->user->logout();
-					$_SERVER["REQUEST_METHOD"] = "GET";
-					$_GET = array();
-					$_POST = array();
-				}
+			if (($_SERVER["HTTP_X_REQUESTED_WITH"] == "XMLHttpRequest") || ($_GET["output"] == "ajax")) {
+				$this->ajax_request = true;
 			}
 
-			if (is_false(WEBSITE_ONLINE) && ($_SERVER["REMOTE_ADDR"] != WEBSITE_ONLINE)) {
-				$page = "offline";
-			} else if ($db->connected == false) {
-				$page = ERROR_MODULE;
+			/* Select module
+			 */
+			if (is_true(ENFORCE_HTTPS) && ($_SERVER["HTTPS"] != "on")) {
+				header(sprintf("Location: https://%s%s", $_SERVER["HTTP_HOST"], $_SERVER["REQUEST_URI"]));
+				$this->module = ERROR_MODULE;
+				$this->http_code = 403;
+			} else if (is_false(WEBSITE_ONLINE) && ($_SERVER["REMOTE_ADDR"] != WEBSITE_ONLINE)) {
+				$this->module = "banshee/offline";
+			} else if ($this->db->connected == false) {
+				$this->module = ERROR_MODULE;
 				$this->http_code = 500;
 			} else {
 				list($this->url) = explode("?", $_SERVER["REQUEST_URI"], 2);
 				$path = trim($this->url, "/");
-
-				$page = valid_input($path, VALIDATE_URL, VALIDATE_NONEMPTY) ? $path : $this->settings->start_page;
-				$this->pathinfo = secure_input(explode("/", $page));
+				if ($path == "") {
+					$page = $this->settings->start_page;
+				} else if (valid_input($path, VALIDATE_URL, VALIDATE_NONEMPTY)) {
+					$page = $path;
+				} else {
+					$this->module = ERROR_MODULE;
+					$this->http_code = 404;
+				}
+				$this->pathinfo = explode("/", $page);
 			}
 
-			$this->select_module($page);
+			if ($this->module === null) {
+				$this->select_module($page);
+			}
 		}
 
 		/* Desctructor
@@ -79,13 +76,13 @@
 		 * ERROR:  -
 		 */
 		public function __destruct() {
-			$_SESSION["previous_page"] = $this->page;
+			$_SESSION["previous_module"] = $this->module;
 			$_SESSION["last_visit"] = time();
 		}
-		
+
 		/* Magic method get
 		 *
-		 * INPUT:  string key 
+		 * INPUT:  string key
 		 * OUTPUT: mixed value
 		 * ERROR:  null
 		 */
@@ -113,12 +110,12 @@
 		 * OUTPUT: string module identifier
 		 * ERROR:  null
 		 */
-		private function page_on_disk($url, $page_file) {
+		private function page_on_disk($url, $pages) {
 			$module = null;
 			$url = explode("/", $url);
 			$url_count = count($url);
 
-			foreach (config_file($page_file) as $line) {
+			foreach ($pages as $line) {
 				$page = explode("/", $line);
 				$parts = count($page);
 				$match = true;
@@ -154,7 +151,7 @@
 			}
 
 			if ($result[0]["visible"] == NO) {
-				if ($this->user->access_allowed("admin/page") == false) {
+				if ($this->user->access_allowed("cms/page") == false) {
 					return null;
 				}
 			}
@@ -175,9 +172,16 @@
 				return;
 			}
 
+			/* Old browser
+			 */
+			if (preg_match("/MSIE [567]/", $_SERVER["HTTP_USER_AGENT"]) > 0) {
+				$this->module = "banshee/browser";
+				return;
+			}
+
 			/* Public page
 			 */
-			if (($this->module = $this->page_on_disk($page, "public_pages")) !== null) {
+			if (($this->module = $this->page_on_disk($page, config_file("public_pages"))) !== null) {
 				$module_count = substr_count($this->module, "/") + 1;
 				$this->parameters = array_slice($this->pathinfo, $module_count);
 				return;
@@ -187,8 +191,8 @@
 
 			/* Change profile before access to private pages
 			 */
-			if ($this->user->logged_in && ($page != LOGOUT_MODULE) && (isset($_SESSION["user_switch"]) == false)) {
-				if ($this->user->status == USER_STATUS_CHANGEPWD) {
+			if ($this->user->logged_in && ($page != LOGOUT_MODULE)) {
+				if (($this->user->status == USER_STATUS_CHANGEPWD) && (isset($_SESSION["user_switch"]) == false)) {
 					$page = "profile";
 					$this->type = "";
 				}
@@ -196,7 +200,7 @@
 
 			/* Private page
 			 */
-			if (($this->module = $this->page_on_disk($page, "private_pages")) === null) {
+			if (($this->module = $this->page_on_disk($page, config_file("private_pages"))) === null) {
 				$this->module = $this->page_in_database($page, YES);
 			}
 
@@ -215,7 +219,7 @@
 				/* Access denied because not with right role.
 				 */
 				$this->module = ERROR_MODULE;
-				$this->http_code = 401;
+				$this->http_code = 403;
 				$this->type = "";
 				$this->user->log_action("unauthorized request for page %s", $page);
 			} else {

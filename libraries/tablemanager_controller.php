@@ -17,7 +17,8 @@
 		protected $foreign_null = "---";
 		protected $log_column = null;
 		protected $browsing = "pagination";
-		private   $table_class = "list";
+		protected $enable_search = false;
+		private   $table_class = "table table-striped table-hover table-condensed";
 
 		/* Show overview
 		 *
@@ -29,6 +30,9 @@
 			switch ($this->browsing) {
 				case "alphabetize":
 					$alphabet = new alphabetize($this->output, "tableadmin_".$this->model->table);
+					if ($_POST["submit_button"] == "Search") {
+						$alphabet->reset();
+					}
 
 					if (($items = $this->model->get_items($alphabet->char)) === false) {
 						$this->output->add_tag("result", "Error while creating overview.");
@@ -42,6 +46,9 @@
 					}
 
 					$paging = new pagination($this->output, "tableadmin_".$this->model->table, $this->page_size, $item_count);
+					if ($_POST["submit_button"] == "Search") {
+						$paging->reset();
+					}
 
 					if (($items = $this->model->get_items($paging->offset, $paging->size)) === false) {
 						$this->output->add_tag("result", "Error while creating overview.");
@@ -54,6 +61,7 @@
 					$this->output->run_javascript("$(document).ready(function(){ $('table.datatable').dataTable(); });");
 					$this->output->add_css("banshee/datatables.css");
 					$this->table_class = "datatable";
+					$this->enable_search = false;
 				default:
 					if (($items = $this->model->get_items()) === false) {
 						$this->output->add_tag("result", "Error while creating overview.");
@@ -91,8 +99,8 @@
 							case "boolean":
 								$value = show_boolean($value);
 								break;
-							case "datetime":
-								$value = date("j M Y, H:i:s", strtotime($value));
+							case "date":
+								$value = date("j F Y", strtotime($value));
 								break;
 							case "foreignkey":
 								if ($value === null) {
@@ -126,6 +134,10 @@
 					break;
 			}
 
+			if ($this->enable_search) {
+				$this->output->add_tag("search", $_SESSION["tablemanager_search_".$this->model->table]);
+			}
+
 			$this->output->close_tag();
 		}
 
@@ -137,7 +149,6 @@
 		 */
 		protected function show_item_form($item) {
 			$calendar_initialized = false;
-			$ckeditor_initialized = false;
 
 			$args = array(
 				"name"         => strtolower($this->name),
@@ -205,18 +216,11 @@
 					}
 				}
 
-				if (($element["type"] == "datetime") && ($calendar_initialized == false)) {
-					$this->output->add_css("banshee/calendar.css");
-					$this->output->add_javascript("banshee/calendar.js");
-					$this->output->add_javascript("banshee/calendar-en.js");
-					$this->output->add_javascript("banshee/calendar-setup.js");
+				if (($element["type"] == "date") && ($calendar_initialized == false)) {
+					$this->output->add_javascript("jquery/jquery-ui.js");
+					$this->output->add_javascript("banshee/datepicker.js");
+					$this->output->add_css("jquery/jquery-ui.css");
 					$calendar_initialized = true;
-				}
-
-				if (($element["type"] == "ckeditor") && ($ckeditor_initialized == false)) {
-					$this->output->add_javascript("ckeditor/ckeditor.js");
-					$this->output->add_javascript("banshee/start_ckeditor.js");
-					$ckeditor_initialized = true;
 				}
 
 				if (($element["type"] == "enum") || ($element["type"] == "foreignkey")) {
@@ -308,6 +312,11 @@
 
 					$this->show_overview();
 				}
+			} else if ($_POST["submit_button"] == "Search") {
+				/* Search item
+				 */
+				$_SESSION["tablemanager_search_".$this->model->table] = $_POST["search"];
+				$this->show_overview();
 			} else {
 				$this->show_overview();
 			}
@@ -358,8 +367,8 @@
 				foreach ($this->model->elements as $name => $element) {
 					if (isset($element["default"])) {
 						$item[$name] = $element["default"];
-					} else if ($element["type"] == "datetime") {
-						$item[$name] = date("Y-m-d H:i:s");
+					} else if ($element["type"] == "date") {
+						$item[$name] = date("Y-m-d");
 					}
 				}
 				$this->show_item_form($item);
@@ -374,6 +383,9 @@
 			} else {
 				/* Show item overview
 				 */
+				if (count($_GET) == 0) {
+					$_SESSION["tablemanager_search_".$this->model->table] = null;
+				}
 				$this->show_overview();
 			}
 

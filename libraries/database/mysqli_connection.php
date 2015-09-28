@@ -22,6 +22,8 @@
 			if ($database != "") {
 				if (($this->link = mysqli_connect($hostname, $username, $password, $database, $port)) == false) {
 					$this->link = null;
+				} else {
+					$this->query("set names %s", "utf8");
 				}
 			}
 		}

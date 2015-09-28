@@ -15,41 +15,25 @@
 				return;
 			}
 
-			$this->output->open_tag("graphs", array(
-				"date_begin "  => date("j F Y", strtotime($begin)),
-				"date_end"     => date("j F Y", strtotime($end) - DAY),
-				"graph_height" => GRAPH_HEIGHT,
-				"bar_width"    => sprintf("%0.2f", 810 / MONITOR_DAYS)));
-
 			foreach ($this->graphs as $key => $label) {
-				$max = 100;
-				foreach ($statistics as $day => $record) {
-					if ($record[$key] > $max) {
-						$max = $record[$key];
-					}
-				}
-
-				$this->output->open_tag("graph", array(
-					"type"  => $key,
-					"label" => $label,
-					"max"   => $this->model->readable_number($max)));
+				$graph = new graph($this->output);
+				$graph->title = $label;
+				$graph->width = 960;
+				$graph->height = GRAPH_HEIGHT;
 
 				foreach ($statistics as $day => $record) {
-					$value = ($max == 0) ? 0 : (int)(GRAPH_HEIGHT * $record[$key] / $max);
 					$timestamp = strtotime($day);
 					$day = date("l j F", $timestamp);
-					$weekend = show_boolean(date("N", $timestamp) > 5);
-					$this->output->add_tag("day", $value, array(
-						"timestamp" => $timestamp,
-						"label"     => $day,
-						"weekend"   => $weekend,
-						"count"     => $this->model->readable_number($record[$key])));
+					$weekend = date("N", $timestamp) > 5;
+					$class = $weekend ? "weekend" : "week";
+					$link = sprintf("%s/%s/%s", $this->page->page, $key, $timestamp);
+
+					$graph->add_bar($day, $record[$key], $class, $link);
 				}
 
-				$this->output->close_tag();
+				$graph->to_output();
+				unset($graph);
 			}
-
-			$this->output->close_tag();
 		}
 
 		private function show_day_information($type, $timestamp) {	
@@ -62,6 +46,7 @@
 
 			$this->output->open_tag("day", array(
 				"hostnames" => show_boolean($this->model->hostnames),
+				"day"       => date("l, j F Y", $timestamp),
 				"label"     => $this->graphs[$type]));
 
 			foreach ($stats as $stat) {
@@ -76,7 +61,8 @@
 		}
 
 		public function execute() {
-			$this->output->add_css("includes/graph.css");
+			$this->output->add_css("banshee/graphs.css");
+			$this->output->add_css("banshee/filter.css");
 
 			if (in_array($this->page->pathinfo[1], array_keys($this->graphs)) == false) {
 				$this->show_graphs();

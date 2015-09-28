@@ -1,0 +1,17 @@
+@media (max-width:767px) {
+	table.table-xs th:first-child {
+		border-bottom:none;
+	}
+
+	table.table-xs th:nth-child(n+2) {
+		display:none;
+	}
+
+	table.table-xs td:nth-child(2):before {
+		content:"Visible:";
+	}
+
+	table.table-xs td:nth-child(3):before {
+		content:"Delete:";
+	}
+}

@@ -24,16 +24,18 @@
 		}
 
 		public function execute() {
-			global $_session;
-
-			if ($_session->using_database == false) {
-				$this->output->add_system_message("The database is not being used to store sessions, so there is nothing to manage.");
+			if ($this->user->logged_in == false) {
+				$this->output->add_tag("result", "The session manager should not be accessible for non-authenticated visitors!");
+				return;
+			} else if ($this->user->session_via_database == false) {
+				$this->output->add_tag("result", "The database is not being used to store sessions, so there is nothing to manage.");
+				return;
 			}
 
 			if ($_SERVER["REQUEST_METHOD"] == "POST") {
 				if ($_POST["submit_button"] == "Update session") {
 					/* Edit session
-				 	*/
+				 	 */
 					if ($this->model->update_session($_POST) == false) {
 						$this->output->add_tag("result", "Error while updateing session.");
 					} else {
@@ -55,7 +57,7 @@
 				 */
 				if (($session = $this->model->get_session($this->page->pathinfo[1])) == false) {
 					$this->output->add_tag("result", "Session not found.");
-				} else {	
+				} else {
 					$session["expire"] = date("j F Y, H:i:s", $session["expire"]);
 					$this->show_session_form($session);
 				}

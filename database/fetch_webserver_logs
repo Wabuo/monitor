@@ -1,8 +1,7 @@
 #!/usr/bin/php
 <?php
 	chdir(dirname($argv[0]));
-	require("../libraries/configuration.php");
-	require("../libraries/general.php");
+	require("../libraries/banshee.php");
 	require("../libraries/security.php");
 
 	/* Database functions
@@ -178,7 +177,7 @@
 			$db->update("webservers", $webserver_id, array("errors" => 0));
 		}
 
-		if ($result["headers"]["Content-Type"] != "text/xml") {
+		if ($result["headers"]["content-type"] != "text/xml") {
 			continue;
 		}
 
@@ -202,7 +201,7 @@
 				}
 				continue;
 			}
-			if ($result["headers"]["Content-Type"] == "application/x-gzip") {
+			if ($result["headers"]["content-type"] == "application/x-gzip") {
 				if (($result["body"] = gzdecode($result["body"])) === false) {
 					printf("Invalid gzipped data received from %s.\n", $webserver["name"]);
 					continue;

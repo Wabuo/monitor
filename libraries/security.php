@@ -6,6 +6,19 @@
 	 * http://www.banshee-php.org/
 	 */
 
+	/* Pre-defined validation strings for valid_input()
+	 */
+	define("VALIDATE_CAPITALS",     "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+	define("VALIDATE_NONCAPITALS",  "abcdefghijklmnopqrstuvwxyz");
+	define("VALIDATE_LETTERS",      VALIDATE_CAPITALS.VALIDATE_NONCAPITALS);
+	define("VALIDATE_PHRASE",       VALIDATE_LETTERS." ,.?!:;-'");
+	define("VALIDATE_NUMBERS",      "0123456789");
+	define("VALIDATE_EMAIL",        VALIDATE_LETTERS.VALIDATE_NUMBERS."_-@.");
+	define("VALIDATE_SYMBOLS",      "!@#$%^&*()_-+={}[]|\:;\"'`~<>,./?");
+	define("VALIDATE_URL",          VALIDATE_LETTERS.VALIDATE_NUMBERS."-_/.=");
+
+	define("VALIDATE_NONEMPTY",     0);
+
 	/* Abort execution upon dangerous PHP setting
 	 *
 	 * INPUT:  string key, mixed value
@@ -18,40 +31,51 @@
 		}
 	}
 
-	/* Remove magic quotes from string
+	/* Prevent Cross-Site Request Forgery
+	 * Note that this protection is not 100% safe (browsers that hide this line).
 	 *
-	 * INPUT:  array/string data
-	 * OUTPUT: array/string data
+	 * INPUT:  object output, object user
+	 * OUTPUT: -
 	 * ERROR:  -
 	 */
-	function remove_magic_quotes($data) {
-		if (is_array($data) == false) {
-			$data = stripslashes($data);
-		} else foreach ($data as $i => $value) {
-			$data[$i] = remove_magic_quotes($value);
+	function prevent_csrf($output, $user) {
+		if ($_SERVER["REQUEST_METHOD"] != "POST") {
+			return false;
 		}
 
-		return $data;
-	}
-
-    /* Remove dangerous characters from string
-     *
-     * INPUT:  string text
-     * OUTPUT: string text
-     * ERROR:  -
-     */
-	function secure_input($data) {
-		if (is_array($data) == false) {
-			$data = str_replace(chr(0), "", $data);
-			$special_chars = "/[".chr(1)."-".chr(8)."]|".
-							 "[".chr(11).chr(12)."]|".
-							 "[".chr(14)."-".chr(31)."]/";
-			$data = preg_replace($special_chars, "", $data);
-		} else foreach ($data as $i => $value) {
-			$data[$i] = secure_input($value);
+		if (isset($_SERVER["HTTP_ORIGIN"]) != false) {
+			$referer = $_SERVER["HTTP_ORIGIN"];
+		} else if (isset($_SERVER["HTTP_REFERER"]) != false) {
+			$referer = $_SERVER["HTTP_REFERER"];
+		} else {
+			if ($_SESSION["csrf_warning_shown"] == false) {
+				$output->add_system_warning("Your browser hides the referrer HTTP header line. You are therefor vulnerable for CSRF attacks via this website!");
+				$_SESSION["csrf_warning_shown"] = true;
+			}
+			return false;
 		}
 
-		return $data;
+		list($protocol,, $referer_host) = explode("/", $referer, 4);
+		list($referer_host) = explode(":", $referer_host);
+		if (($protocol != "http:") && ($protocol == "https:")) {
+			return false;
+		}
+
+		$valid_hostnames = array($_SERVER["HTTP_HOST"]);
+		if (in_array($referer_host, $valid_hostnames)) {
+			return false;
+		}
+
+		$message = sprintf("CSRF attempt from %s blocked", $_SERVER["HTTP_REFERER"]);
+
+		$output->add_system_warning($message);
+		$user->log_action($message);
+		$user->logout();
+		$_SERVER["REQUEST_METHOD"] = "GET";
+		$_GET = array();
+		$_POST = array();
+
+		return true;
 	}
 
 	/* Validate input
@@ -107,7 +131,11 @@
 	 * ERROR:  -
 	 */
 	function valid_date($date) {
-		return preg_match("/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/", $date) === 1;
+		if ($date == "0000-00-00") {
+			return false;
+		}
+
+		return preg_match("/^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}$/", $date) === 1;
 	}
 
 	/* Validate a time string
@@ -142,6 +170,28 @@
 		return preg_match("/^(\+31|0)([0-9]{9}|6-?[0-9]{8}|[0-9]{2}-?[0-9]{7}|[0-9]{3}-?[0-9]{6})$/", $phonenr) === 1;
 	}
 
+	/* Get users with a certain role
+	 *
+	 * INPUT:  object database, string role name[, string role name, ...]
+	 * OUTPUT: array user information
+	 * ERROR:  false
+	 */
+	function users_with_role() {
+		$roles = func_get_args();
+		if (count($roles) < 2) {
+			return false;
+		}
+
+		$db = array_shift($roles);
+
+		$query = "select distinct u.* from users u, user_role m, roles r ".
+		         "where r.id=m.role_id and m.user_id=u.id and (".
+		         implode(" or ", array_fill(0, count($roles), "r.name=%s")).
+		         ")";
+
+		return $db->execute($query, $roles);
+	}
+
 	/* Return a per-page overview of the access levels
 	 *
 	 * INPUT:  object database
@@ -164,7 +214,6 @@
 		foreach ($private_pages as $page) {
 			$access_rights[$page] = $user->is_admin ? YES : NO;
 		}
-		$access_rights["logout"] = $user->logged_in ? YES : NO;
 
 		if ($user->logged_in && ($user->is_admin == false)) {
 			$query = "select * from roles where id in ".
@@ -176,8 +225,8 @@
 				$role = array_slice($role, 2);
 				foreach ($role as $page => $level) {
 					$level = (int)$level;
-					if ($user->is_admin && ($level == 0)) {
-						$level = 1;
+					if ($user->is_admin && ($level == NO)) {
+						$level = YES;
 					}
 					if (isset($access_rights[$page]) == false) {
 						$access_rights[$page] = $level;
@@ -245,7 +294,7 @@
 	 * OUTPUT: string one time key
 	 * ERROR:  false
 	 */
-	function get_one_time_key($db, $user_id) {
+	function one_time_key($db, $user_id) {
 		if (($user = $db->entry("users", $user_id)) == false) {
 			return false;
 		}
@@ -254,25 +303,25 @@
 			return $user["one_time_key"];
 		}
 
-		$key = random_string();
+		$attempts = 3;
+		$query = "select id from users where one_time_key=%s";
+
+		do {
+			if ($attempts-- == 0) {
+				return false;
+			}
+
+			$key = random_string();
+
+			if (($result = $db->execute($query, $key)) === false) {
+				return false;
+			}
+		} while ($result != false);
+
 		if ($db->update("users", $user_id, array("one_time_key" => $key)) == false) {
 			return false;
 		}
 
 		return $key;
-	}
-
-	/* Validate captcha code
-	 *
-	 * INPUT:  string captcha code
-	 * OUTPUT: boolean captcha code valid
-	 * ERROR:  -
-	 */
-	function valid_captcha_code($code) {
-		if (isset($_SESSION["captcha_code"]) == false) {
-			return false;
-		}
-
-		return $_SESSION["captcha_code"] === $code;
 	}
 ?>

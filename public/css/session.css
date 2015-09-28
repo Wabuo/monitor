@@ -1,16 +1,10 @@
-table.list {	
-	width:100%;
-	margin-bottom:15px;
+@media (max-width:767px) {
+	table.table th:nth-child(2),
+	table.table td:nth-child(2) {
+		display:none;
+	}
 }
 
-table.list tr.current td {
+table.table tr.current td {
 	font-weight:bold;
-}
-
-table.edit {
-	margin-bottom:15px;
-}
-
-input.button {
-	margin-right:10px;
 }

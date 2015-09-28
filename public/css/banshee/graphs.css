@@ -1,0 +1,16 @@
+div.panel div.panel-body {
+	background-color:#f8f8f8;
+}
+
+div.date {
+	text-align:right;
+}
+
+@media (min-width:768px) {
+	div.date {
+		position:absolute;
+		top:16px;
+		right:20px;
+	}
+}
+

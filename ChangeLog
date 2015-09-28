@@ -1,3 +1,18 @@
+monitor (1.2) stable; urgency=low
+
+  * Banshee framework updated to 5.0.
+  * Design made responsive.
+  * Database changes:
+      CREATE TABLE `organisations` ( `id` int(10) unsigned NOT NULL AUTO_INCREMENT, `name` varchar(50) NOT NULL, PRIMARY KEY (`id`), UNIQUE KEY `name` (`name`), UNIQUE KEY `name_2` (`name`)) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+      ALTER TABLE `users` ADD `organisation_id` INT UNSIGNED NOT NULL AFTER `id`, ADD INDEX ( `organisation_id` );
+      ALTER TABLE `users` ADD `cert_serial` INT UNSIGNED NULL AFTER `one_time_key`;
+      ALTER TABLE `users` CHANGE `password` `password` VARCHAR( 128 ) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL;
+      Run 'database/private_pages' to update the table 'roles'.
+      Run 'database/fix_settings' to add missing settings.
+  * Small improvements.
+
+ -- Hugo Leisink <hugo@leisink.net>  Sun, 21 Jun 2015 11:53:02 +0200
+
 monitor (1.1) stable; urgency=low
 
   * Support for failed login logging.

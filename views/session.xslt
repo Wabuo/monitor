@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-<xsl:include href="includes/banshee.xslt" />
+<xsl:include href="banshee/main.xslt" />
 
 <!--
 //
@@ -8,8 +8,11 @@
 //
 //-->
 <xsl:template match="sessions">
-<table class="list">
+<table class="table table-striped table-hover table-condensed">
+<thead>
 <tr><th>IP address</th><th>Expire date</th><th>Name</th></tr>
+</thead>
+<tbody>
 <xsl:for-each select="session">
 <tr class="click {owner}" onClick="javascript:document.location='/session/{@id}'">
 <td><xsl:value-of select="ip_address" /></td>
@@ -17,6 +20,7 @@
 <td><xsl:value-of select="name" /></td>
 </tr>
 </xsl:for-each>
+</tbody>
 </table>
 </xsl:template>
 
@@ -30,15 +34,18 @@
 <form action="/session" method="post">
 <input type="hidden" name="id" value="{session/@id}" />
 
-<table class="edit">
-<tr><td>Name:</td><td><input type="text" name="name" value="{session/name}" class="text" /></td></tr>
-<tr><td>IP address:</td><td><xsl:value-of select="session/ip_address" /></td></tr>
-<tr><td>Expire date:</td><td><xsl:value-of select="session/expire" /></td></tr>
-</table>
+<label for="name">Name:</label>
+<input type="text" id="name" name="name" value="{session/name}" class="form-control" />
+<label for="ipaddr">IP address:</label>
+<input id="ipaddr" class="form-control" disabled="disabled" value="{session/ip_address}" />
+<label for="expire">Expire date:</label>
+<input id="expire" class="form-control" disabled="disabled" value="{session/expire}" />
 
-<input type="submit" name="submit_button" value="Update session" class="button" />
-<input type="button" value="Cancel" class="button" onClick="javascript:document.location='/session'" />
-<input type="submit" name="submit_button" value="Delete session" class="button" onClick="javascript:return confirm('DELETE: Are you sure?')" />
+<div class="btn-group">
+<input type="submit" name="submit_button" value="Update session" class="btn btn-default" />
+<a href="/session" class="btn btn-default">Cancel</a>
+<input type="submit" name="submit_button" value="Delete session" class="btn btn-default" onClick="javascript:return confirm('DELETE: Are you sure?')" />
+</div>
 </form>
 </xsl:template>
 

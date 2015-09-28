@@ -71,20 +71,6 @@
 			return str_replace($from, $to, $str);
 		}
 
-		/* Add string to buffer
-		 *
-		 * INPUT:  string data
-		 * OUTPUT: -
-		 * ERROR:  -
-		 */
-		private function add_to_buffer($str) {
-			$this->xml_data .= $str;
-
-			if ($this->cache_key !== null) {
-				$this->cache_buffer .= $str;
-			}
-		}
-
 		/* Remove unprintable characters from string
 		 *
 		 * INPUT:  string text[, string replacement character]
@@ -107,6 +93,20 @@
 			}
 
 			return $result;
+		}
+
+		/* Add string to buffer
+		 *
+		 * INPUT:  string data
+		 * OUTPUT: -
+		 * ERROR:  -
+		 */
+		private function add_to_buffer($str) {
+			$this->xml_data .= $str;
+
+			if ($this->cache_key !== null) {
+				$this->cache_buffer .= $str;
+			}
 		}
 
 		/* Add open-tag to buffer
@@ -175,7 +175,7 @@
 				$this->open_tag($name, $attributes);
 			}
 
-			$skip_tags = array("id", "password");
+			$skip_tags = array("id", "password", "creditcard");
 			foreach (array_keys($record) as $key) {
 				if (in_array($key, $skip_tags, true)) {
 					continue;
@@ -197,7 +197,7 @@
 
 		/* Add XML data to buffer
 		 *
-		 * INPUT:  XML data, string tat name
+		 * INPUT:  XML data, string tag name
 		 * OUTPUT: -
 		 * ERROR:  -
 		 */

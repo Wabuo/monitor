@@ -1,7 +1,7 @@
 #!/usr/bin/php
 <?php
 	chdir(dirname($argv[0]));
-	require("../libraries/configuration.php");
+	require("../libraries/banshee.php");
 	require("../libraries/settings.php");
 	require("../libraries/security.php");
 
@@ -12,20 +12,26 @@
 	printf("This script will create a MySQL user '%s' and the database '%s'.\n\n", DB_USERNAME, DB_DATABASE);
 	print "Make sure the database settings in settings/website.conf are correct!\n\n";
 
-	/* Get MySQL root password
+	/* Get MySQL credentials
 	 */
+	print "Enter MySQL admin's username [root]: ";
+	$db_username = trim(fgets(STDIN));
+	if ($db_username == "") {
+		$db_username = "root";
+	}
+
 	do {
-		print "Enter MySQL root password: ";
+		print "Enter password for user ".$db_username.": ";
 		system("/bin/stty -echo");
-		$password = trim(fgets(STDIN));
+		$db_password = trim(fgets(STDIN));
 		system("/bin/stty echo");
 		print "\n";
-	} while ($password == "");
+	} while ($db_password == "");
 
 	/* Connect to MySQL server
 	 */
 	ob_start();
-	$db = new MySQLi_connection(DB_HOSTNAME, "mysql", "root", $password);
+	$db = new MySQLi_connection(DB_HOSTNAME, "mysql", $db_username, $db_password);
 	ob_end_clean();
 
 	if ($db->connected == false) {
@@ -86,6 +92,9 @@
 	if ($db->connected == false) {
 		exit("Can't connect to MySQL database (".DB_USERNAME."@".DB_DATABASE.").\n");
 	}
+
+	$settings = new settings($db);
+	$settings->secret_website_code = random_string();
 
 	$query = "update users set status=%d";
 	$db->query($query, USER_STATUS_CHANGEPWD);

@@ -1,25 +1,12 @@
-div.hidess {
-	position:relative;
-	top:-30px;
-	left:600px;
-	height:0;
-	width:150px;
+div.content div.hidess {
+	position:absolute;
+	top:16px;
+	right:300px;
 }
 
-table.list {
-	width:100%;
-	margin-bottom:15px;
-}
-
-table.list th.timestamp {
-	width:200px;
-}
-
-table.list th.webserver {
-	width:150px;
-}
-
-table td {
-	vertical-align:top;
-	padding-right:10px;
+@media (max-width:767px) {
+    div.content div.hidess {
+		position:static;
+		float:right;
+	}
 }

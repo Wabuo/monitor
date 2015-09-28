@@ -12,7 +12,7 @@
 		private $db = null;
 		private $max_value_len = 256;
 		private $cache = null;
-		private $types = array("boolean", "integer", "string");
+		private $types = array("boolean", "float", "integer", "string");
 
 		/* Constructor
 		 *
@@ -58,7 +58,9 @@
 				return $this->cache[$key];
 			}
 
-			if ($this->db->connected == false) {
+			if ($this->db === null) {
+				return null;
+			} else if ($this->db->connected == false) {
 				return null;
 			}
 
@@ -66,12 +68,14 @@
 			if (($setting = $this->db->execute($query, "key", $key)) === false) {
 				return null;
 			} else if (count($setting) == 0) {
+				printf("Unknown setting: %s\n", $key);
 				return null;
 			}
 
 			$value = $setting[0]["value"];
 			switch ($setting[0]["type"]) {
 				case "boolean": $value = is_true($value); break;
+				case "float": $value = (float)$value; break;
 				case "integer": $value = (int)$value; break;
 			}
 
@@ -91,6 +95,12 @@
 				return;
 			}
 
+			if ($this->db === null) {
+				return null;
+			} else if ($this->db->connected == false) {
+				return null;
+			}
+
 			if ($value === null) {
 				$query = "delete from settings where %S=%s";
 				if ($this->db->query($query, "key", $key) !== false) {
@@ -98,6 +108,8 @@
 				}
 			} else if (is_int($value)) {
 				$this->store($key, "integer", (string)$value);
+			} else if (is_float($value)) {
+				$this->store($key, "float", (float)$value);
 			} else if (is_bool($value)) {
 				$this->store($key, "boolean", show_boolean($value));
 			} else if (is_string($value)) {

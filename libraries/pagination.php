@@ -3,7 +3,7 @@
 	 *
 	 * Copyright (C) by Hugo Leisink <hugo@leisink.net>
 	 * This file is part of the Banshee PHP framework
-	 * http://www.hiawatha-webserver.org/banshee
+	 * http://www.banshee-php.org/
 	 */
 
 	class pagination {
@@ -47,7 +47,7 @@
 				$_SESSION["pagination"] = array();
 			}
 			if (isset($_SESSION["pagination"][$name]) == false) {
-				$_SESSION["pagination"][$name] = 0;
+				$_SESSION["pagination"][$name] = $this->page;
 			}
 
 			/* Calulate page number
@@ -61,7 +61,7 @@
 				}
 			}
 
-			$this->output->add_css("includes/pagination.css");
+			#$this->output->add_css("banshee/pagination.css");
 		}
 
 		/* Magic method get
@@ -91,16 +91,16 @@
 
 		/* Generate XML for the browse links
 		 *
-		 * INPUT:  -
+		 * INPUT:  int number of page links, int step size of arrow links
 		 * OUTPUT: boolean xml generated
 		 * ERROR:  -
 		 */
-		public function show_browse_links($max_links = 7, $step = 3) {
+		public function show_browse_links($max_links = 7, $step = 7) {
 			if ($this->error) {
 				return false;
 			}
 			$max_links = (floor($max_links / 2) * 2) + 1;
-			
+
 			/* Calculate minimum and maximum page number
 			 */
 			if ($this->max_page > $max_links) {
@@ -122,7 +122,7 @@
 			/* Generate XML for browse links
 			 */
 			$this->output->open_tag("pagination", array(
-				"page" => $this->page, 
+				"page" => $this->page,
 				"max"  => $this->max_page,
 				"step" => $step));
 			for ($page = $min; $page <= $max; $page++) {
@@ -133,32 +133,16 @@
 			return true;
 		}
 
-		/* Returns the number of entries in a table
+		/* Returns content of table for current page
 		 *
-		 * INPUT:  object database, string table name
-		 * OUTPUT: int table size
-		 * ERROR:  false
-		 */
-		public function table_size($db, $table) {
-			$query = "select count(*) as count from %S";
-
-			if (($result = $db->execute($query, $table)) == false) {
-				return false;
-			}
-
-			return (int)$result[0]["count"];
-		}
-
-		/* Returns content of entire table
-		 *
-		 * INPUT:  object database, string table name, int select offset, int select count[, string column name for ordering]
+		 * INPUT:  object database, string table name[, string column name for ordering]
 		 * OUTPUT: array table content
 		 * ERROR:  false
 		 */
-		public function table_content($db, $table, $offset, $count, $order = "id") {
+		public function get_items($db, $table, $order = "id") {
 			$query = "select * from %S order by %S limit %d,%d";
 
-			return $db->execute($query, $table, $order, $offset, $count);
+			return $db->execute($query, $table, $order, $this->offset, $this->size);
 		}
 	}
 ?>

@@ -1,0 +1,25 @@
+div.content div.filter {	
+	float:right;
+	margin-top:-30px;
+}
+
+div.content div.filter select.filter {
+	min-width:75px;
+}
+
+div.content div.filter span {
+	margin-left:20px;
+}
+
+@media (max-width:767px) {
+	div.content div.filter {
+		float:none;
+		margin-top:0;
+	}
+
+	div.content div.filter span {
+		display:block;
+		text-align:right;
+		margin-bottom:10px;
+	}
+}

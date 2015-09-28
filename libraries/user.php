@@ -12,8 +12,6 @@
 		private $db = null;
 		private $settings = null;
 		private $session = null;
-		private $id = null;
-		private $client_ip = null;
 		private $logged_in = false;
 		private $record = array();
 		private $is_admin = false;
@@ -29,15 +27,24 @@
 			$this->settings = $settings;
 			$this->session = $session;
 
-			$this->client_ip = $_SERVER["REMOTE_ADDR"];
-			if (isset($_SERVER["HTTP_X_FORWARDED_FOR"])) {
-				$this->client_ip .= "/".$_SERVER["HTTP_X_FORWARDED_FOR"];
+			/* Basic HTTP Authentication for web services
+			 */
+			if (isset($_SERVER["HTTP_AUTHORIZATION"])) {
+				list($method, $auth) = explode(" ", $_SERVER["HTTP_AUTHORIZATION"], 2);
+				if (($method == "Basic") && (($auth = base64_decode($auth)) !== false)) {
+					list($username, $password) = explode(":", $auth, 2);
+					if ($this->login_password($username, $password, false) == false) {
+						header("Status: 401");
+					} else {
+						$this->bind_to_ip();
+					}
+				}
 			}
 
 			if (isset($_SESSION["user_id"])) {
-				if (time() - $_SESSION["last_private_visit"] >= SESSION_TIMEOUT) {
+				if (time() - $_SESSION["last_private_visit"] >= $this->settings->session_timeout) {
 					$this->logout();
-				} else if (($_SESSION["binded_ip"] === NO) || ($_SESSION["binded_ip"] === $this->client_ip)) {
+				} else if (($_SESSION["binded_ip"] === NO) || ($_SESSION["binded_ip"] === $_SERVER["REMOTE_ADDR"])) {
 					$this->load_user_record($_SESSION["user_id"]);
 				}
 			}
@@ -51,10 +58,10 @@
 		 */
 		public function __get($key) {
 			switch ($key) {
-				case "id": return $this->id;
 				case "logged_in": return $this->logged_in;
 				case "is_admin": return $this->is_admin;
-				case "client_ip": return $this->client_ip;
+				case "do_not_track": return $_SERVER["HTTP_DNT"] == 1;
+				case "session_via_database": return $this->session->using_database;
 				default:
 					if (isset($this->record[$key])) {
 						return $this->record[$key];
@@ -76,7 +83,6 @@
 			} else if ($this->record["status"] == USER_STATUS_DISABLED) {
 				$this->logout();
 			} else {
-				$this->id = $user_id;
 				$this->logged_in = true;
 
 				$this->record["role_ids"] = array();
@@ -99,7 +105,6 @@
 		 * ERROR:  -
 		 */
 		private function login($user_id) {
-			$this->logged_in = true;
 			$this->load_user_record($user_id);
 			$this->log_action("user logged-in");
 
@@ -121,22 +126,26 @@
 		public function login_password($username, $password, $use_challenge_response_method) {
 			$query = "select * from users where username=%s and status!=%d limit 1";
 			if (($data = $this->db->execute($query, $username, USER_STATUS_DISABLED)) == false) {
+				header("X-Hiawatha-Monitor: failed_login");
 				sleep(1);
 				return false;
 			}
 			$user = $data[0];
 
+			usleep(rand(0, 10000));
+
 			if ($use_challenge_response_method) {
-				if (md5($_SESSION["challenge"].$user["password"]) === $password) {
+				if (hash(PASSWORD_HASH, $_SESSION["challenge"].$user["password"]) === $password) {
 					$this->login((int)$user["id"]);
 				}
 			} else {
-				if ($user["password"] === md5($password)) {
+				if ($user["password"] === hash(PASSWORD_HASH, $password.hash(PASSWORD_HASH, $username))) {
 					$this->login((int)$user["id"]);
 				}
 			}
 
 			if ($this->logged_in == false) {
+				header("X-Hiawatha-Monitor: failed_login");
 				sleep(1);
 			}
 
@@ -154,16 +163,39 @@
 				return false;
 			}
 
-			if (($user = $this->db->entry("users", $key, "one_time_key")) == false) {
+			usleep(rand(0, 100000));
+
+			$query = "select * from users where one_time_key=%s and status!=%d limit 1";
+			if (($data = $this->db->execute($query, $key, USER_STATUS_DISABLED)) == false) {
+				header("X-Hiawatha-Monitor: failed_login");
 				sleep(1);
 				return false;
 			}
+			$user = $data[0];
 
 			$query = "update users set one_time_key=null where id=%d";
 			$this->db->query($query, $user["id"]);
 
 			$this->login((int)$user["id"]);
 			$this->bind_to_ip();
+
+			return true;
+		}
+
+		/* Login via SSL client authentication
+		 *
+		 * INPUT:  int certificate serial number
+		 * OUTPUT: boolean serial number valid
+		 * ERROR:  -
+		 */
+		public function login_ssl_auth($cert_serial) {
+			$query = "select * from users where cert_serial=%d and status!=%d limit 1";
+			if (($data = $this->db->execute($query, $cert_serial, USER_STATUS_DISABLED)) == false) {
+				return false;
+			}
+			$user = $data[0];
+
+			$this->login((int)$user["id"]);
 
 			return true;
 		}
@@ -179,7 +211,6 @@
 
 			$this->session->reset();
 
-			$this->id = null;
 			$this->logged_in = false;
 			$this->record = array();
 			$this->is_admin = false;
@@ -192,6 +223,8 @@
 		 * ERROR:  -
 		 */
 		public function access_allowed($page) {
+			static $access = array();
+
 			/* Always access
 			 */
 			$allowed = array(LOGOUT_MODULE);
@@ -199,51 +232,62 @@
 				return true;
 			}
 
-			/* Public page
+			/* Public module
 			 */
 			if (in_array($page, page_to_module(config_file("public_pages")))) {
 				return true;
 			}
 
+			/* Public page in database
+			*/
+			$query = "select count(*) as count from pages where url=%s and private=%d";
+			if (($result = $this->db->execute($query, "/".$page, NO)) == false) {
+				return false;
+			} else if ($result[0]["count"] > 0) {
+				return true;
+			}
+
 			/* No roles, no access
 			 */
-			if (count($this->role_ids) == 0) {
+			if (count($this->record["role_ids"]) == 0) {
 				return false;
+			}
+
+			/* Cached?
+			 */
+			if (isset($access[$page])) {	
+				return $access[$page];
 			}
 
 			/* Check access
 			 */
+			$conditions = $rids = array();
+			foreach ($this->record["role_ids"] as $rid) {
+				array_push($conditions, "%d");
+				array_push($rids, $rid);
+			}
+
 			if (in_array($page, page_to_module(config_file("private_pages")))) {
 				/* Pages on disk (modules)
 				 */
-				$conditions = $rids = array();
-				foreach ($this->role_ids as $rid) {
-					array_push($conditions, "id=%d");
-					array_push($rids, $rid);
-				}
-
-				$query = "select %S from roles where ".implode(" or ", $conditions);
+				$query = "select %S from roles where id in (".implode(", ", $conditions).")";
 				if (($access = $this->db->execute($query, $page, $rids)) == false) {
 					return false;
 				}
 			} else {
 				/* Pages in database
 				 */
-				$conditions = $rids = array();
-				foreach ($this->role_ids as $rid) {
-					array_push($conditions, "a.role_id=%d");
-					array_push($rids, $rid);
-				}
-
 				$query = "select a.level from page_access a, pages p ".
 				         "where a.page_id=p.id and p.url=%s and a.level>0 ".
-				         "and (".implode(" or ", $conditions).")";
+				         "and a.role_id in (".implode(", ", $conditions).")";
 				if (($access = $this->db->execute($query, "/".$page, $rids)) == false) {
 					return false;
 				}
 			}
 
-			return max(array_flatten($access)) > 0;
+			$access[$page] = max(array_flatten($access)) > 0;
+
+			return $access[$page];
 		}
 
 		/* Bind current session to IP address
@@ -253,7 +297,7 @@
 		 * ERROR:  -
 		 */
 		public function bind_to_ip() {
-			$_SESSION["binded_ip"] = $this->client_ip;
+			$_SESSION["binded_ip"] = $_SERVER["REMOTE_ADDR"];
 		}
 
 		/* Verify if user has a certain role
@@ -264,14 +308,14 @@
 		 */
 		public function has_role($role) {
 			if (is_int($role)) {
-				return in_array($role, $this->role_ids);
+				return in_array($role, $this->record["role_ids"]);
 			} else if (is_string($role)) {
 				if (($entry = $this->db->entry("roles", $role, "name")) != false) {
 					return $this->has_role((int)$entry["id"]);
 				}
 			} else if (is_array($role)) {
 				foreach ($role as $item) {
-					if ($this->has_role($item)) {	
+					if ($this->has_role($item)) {
 						return true;
 					}
 				}
@@ -283,8 +327,8 @@
 		/* Log user action
 		 *
 		 * INPUT:  string action
-		 * OUTPUT: -
-		 * ERROR:  -
+		 * OUTPUT: true
+		 * ERROR:  false
 		 */
 		public function log_action($action) {
 			if (func_num_args() > 1) {
@@ -303,10 +347,14 @@
 			}
 			$mesg .= "|".$action."\n";
 
-			if (($fp = fopen("../logfiles/actions.log", "a")) != false) {
-				fputs($fp, $mesg);
-				fclose($fp);
+			if (($fp = fopen("../logfiles/actions.log", "a")) == false) {
+				return false;
 			}
+
+			fputs($fp, $mesg);
+			fclose($fp);
+
+			return true;
 		}
 	}
 ?>
