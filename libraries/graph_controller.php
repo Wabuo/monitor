@@ -8,7 +8,7 @@
 			$filter->to_output($this->model->table, $this->model->hostnames);
 
 			$begin = date("Y-m-d", strtotime("-".(MONITOR_DAYS - 1)." days"));
-			$end = date("Y-m-d", strtotime("tomorrow"));
+			$end = date("Y-m-d");
 
 			if (($statistics = $this->model->get_statistics($begin, $end, $filter->hostname, $filter->webserver)) === false) {
 				$this->output->add_tag("result", "Database error.");
@@ -24,9 +24,8 @@
 				foreach ($statistics as $day => $record) {
 					$timestamp = strtotime($day);
 					$day = date("l j F", $timestamp);
-					$weekend = date("N", $timestamp) > 5;
-					$class = $weekend ? "weekend" : "week";
-					$link = sprintf("%s/%s/%s", $this->page->page, $key, $timestamp);
+					$class = date("N", $timestamp) > 5 ? "weekend" : "week";
+					$link = sprintf("/%s/%s/%s", $this->page->page, $key, date("Y-m-d", $timestamp));
 
 					$graph->add_bar($day, $record[$key], $class, $link);
 				}
@@ -36,17 +35,33 @@
 			}
 		}
 
-		private function show_day_information($type, $timestamp) {	
+		private function show_day_information($type, $date) {	
 			$filter = new filter($this->db, $this->output, $this->user);
+			$filter->to_output($this->model->table, $this->model->hostnames);
 
-			if (($stats = $this->model->get_day_information($type, $timestamp, $filter->hostname, $filter->webserver)) === false) {
+			if (($stats = $this->model->get_day_statistics($type, $date, $filter->hostname, $filter->webserver)) === false) {
+				$this->output->add_tag("result", "Database error.");
+				return false;
+			}
+
+			$graph = new graph($this->output);
+			$graph->title = $this->graphs[$type]." for ".date("l j F Y", strtotime($date));
+			$graph->width = 960;
+			$graph->height = GRAPH_HEIGHT;
+
+			foreach ($stats as $hour => $count) {
+				$graph->add_bar("Hour ".$hour, $count, "hour");
+			}
+
+			$graph->to_output();
+
+			if (($stats = $this->model->get_day_information($type, $date, $filter->hostname, $filter->webserver)) === false) {
 				$this->output->add_tag("result", "Database error.");
 				return false;
 			}
 
 			$this->output->open_tag("day", array(
 				"hostnames" => show_boolean($this->model->hostnames),
-				"day"       => date("l, j F Y", $timestamp),
 				"label"     => $this->graphs[$type]));
 
 			foreach ($stats as $stat) {
@@ -64,7 +79,7 @@
 			$this->output->add_css("banshee/graphs.css");
 			$this->output->add_css("banshee/filter.css");
 
-			if (in_array($this->page->pathinfo[1], array_keys($this->graphs)) == false) {
+			if ((in_array($this->page->pathinfo[1], array_keys($this->graphs)) == false) || (valid_date($this->page->pathinfo[2]) == false)) {
 				$this->show_graphs();
 			} else {
 				$this->show_day_information($this->page->pathinfo[1], $this->page->pathinfo[2]);

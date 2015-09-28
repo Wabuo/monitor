@@ -9,7 +9,7 @@
 	/* For internal usage. Only change if you know what you're doing!
 	 */
 	define("BANSHEE_VERSION", "5.0");
-	define("MONITOR_VERSION", "1.2");
+	define("MONITOR_VERSION", "1.3");
 	define("ADMIN_ROLE_ID", 1);
 	define("YES", 1);
 	define("NO", 0);
@@ -19,13 +19,10 @@
 	define("PASSWORD_HASH", "sha256");
 	define("SESSION_NAME", "WebsiteSessionID");
 	define("DAY", 86400);
-	define("LOG_DAYS", 60);
 	define("PAGE_MODULE", "banshee/page");
 	define("ERROR_MODULE", "banshee/error");
 	define("LOGIN_MODULE", "banshee/login");
 	define("LOGOUT_MODULE", "logout");
-	define("FPDF_FONT_PATH", "../extra/fpdf_fonts/");
-	define("PHOTO_PATH", "photos");
 	define("FILES_PATH", "files");
 	define("TLS_CERT_SERIAL_VAR", "TLS_CERT_SERIAL");
 

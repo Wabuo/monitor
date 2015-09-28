@@ -21,11 +21,40 @@ div.webserver div.offline {
 
 /* Alerts
  */
-div.top-alert table {
-	width:100%;
+h2 span {
+	font-size:12px;
+	position:relative;
+	top:-7px;
 }
 
-div.top-alert table td:nth-child(2) {
-	width:80px;
-	text-align:right;
+div.ui-dialog div.ui-dialog-titlebar {
+	color:#000000;
+	background-color:#ff8020;
+	background-image:none;
+}
+
+div.ui-dialog div.ui-dialog-titlebar span {
+	font-weight:normal;
+}
+
+div.ui-dialog div.ui-dialog-content {
+	font-size:14px;
+}
+
+div.top-alert table {
+	width:100%;
+	margin-bottom:0;
+}
+
+img.loading {
+	display:block;
+	margin:0 auto;
+}
+
+@media (min-width:768px) {
+	div.top-alert table th:nth-child(n+2),
+	div.top-alert table td:nth-child(n+2) {
+		width:70px;
+		text-align:right;
+	}
 }

@@ -18,6 +18,13 @@
 				$this->output->add_tag("cancel", "Back", array("page" => $this->settings->start_page));
 			}
 
+			$notification_methods = config_array(NOTIFICATION_METHODS);
+			$this->output->open_tag("notification");
+			foreach ($notification_methods as $method => $label) {
+				$this->output->add_tag("method", $method, array("label" => $label));
+			}
+			$this->output->close_tag();
+
 			/* Action log
 			 */
 			if (($actionlog = $this->model->last_account_logs()) !== false) {

@@ -58,9 +58,8 @@
 			/* Webserver filter
 			 */
 			$query = "select w.* from webservers w, webserver_user a ".
-			         "where w.id=a.webserver_id and a.user_id=%d and w.active=%d ".
-			         "order by name";
-			if (($webservers = $this->db->execute($query, $this->user->id, YES)) !== false) {
+			         "where w.id=a.webserver_id and a.user_id=%d order by name";
+			if (($webservers = $this->db->execute($query, $this->user->id)) !== false) {
 				$this->output->open_tag("webservers");
 				array_unshift($webservers, array("id" => 0, "name" => "All"));
 				foreach ($webservers as $webserver) {

@@ -1,14 +1,9 @@
 #!/usr/bin/php
 <?php
-	define("HISTORY_DAYS",   15);
-	define("ALERT_MEDIUM",  150);
-	define("ALERT_HIGH",    300);
-	define("USE_MEDIAN",   true);
-	define("SKIP_NORMAL", false);
-
 	chdir(dirname($argv[0]));
 	require("../libraries/banshee.php");
 	require("../libraries/security.php");
+	require("../libraries/settings.php");
 
 	/* Dummy user class
 	 */
@@ -40,19 +35,6 @@
 		}
 	}
 
-	/* Main program
-	 */
-	error_reporting(E_ALL & ~E_NOTICE);
-
-	/* Connect to database
-	 */
-	$db = new MySQLi_connection(DB_HOSTNAME, DB_DATABASE, DB_USERNAME, DB_PASSWORD);
-	if ($db->connected == false) {
-		exit("Internal error: database not available.\n");
-	}
-
-	$settings = new settings($db);
-
 	/* Calculate median
 	 */
 	function get_median($data, $key) {
@@ -61,7 +43,6 @@
 		foreach ($data as $item) {
 			array_push($values, $item[$key]);
 		}
-
 		sort($values);
 
 		$count = count($values);
@@ -76,17 +57,29 @@
 		return $median;
 	}
 
+	/* Main program
+	 */
+	error_reporting(E_ALL & ~E_NOTICE);
+
+	/* Connect to database
+	 */
+	$db = new MySQLi_connection(DB_HOSTNAME, DB_DATABASE, DB_USERNAME, DB_PASSWORD);
+	if ($db->connected == false) {
+		exit("Internal error: database not available.\n");
+	}
+
+	$settings = new settings($db);
+
 	/* Get information about webserver
 	 */
-	function get_information($db, $table, $columns, $user_id, $webserver_id, $hostnames) {
+	function get_information($db, $settings, $table, $columns, $user_id, $webserver_id, $hostnames) {
 		$user = new dummy_user($user_id);
 		$model = new stats_model($db, $user, $table, $columns, $hostnames);
 
+		$begin = date("Y-m-d", strtotime("-".($settings->report_history_days - 1)." days"));
 		$today = date("Y-m-d");
-		$begin = date("Y-m-d", strtotime("-".(HISTORY_DAYS - 1)." days"));
-		$end = date("Y-m-d", strtotime("tomorrow"));
 
-		if (($stats = $model->get_statistics($begin, $end, 0, $webserver_id)) === false) {
+		if (($stats = $model->get_statistics($begin, $today, 0, $webserver_id)) === false) {
 			return false;
 		}
 
@@ -103,26 +96,26 @@
 		}
 
 		foreach ($result as $idx => $stat) {
-			if (USE_MEDIAN) {
+			if ($settings->report_use_median) {
 				$result[$idx]["previous"] = get_median($stats, $idx);
 			} else {
-				$result[$idx]["previous"] = round($stat["previous"] / (HISTORY_DAYS - 1));
+				$result[$idx]["previous"] = round($stat["previous"] / ($settings->report_history_days - 1));
 			}
 
 			if ($result[$idx]["previous"] != 0) {
-				$percentage = round($stat["today"] / $result[$idx]["previous"] * 100) - 100;
-				$result[$idx]["percentage"] = $percentage." %";
+				$change = round($stat["today"] / $result[$idx]["previous"] * 100) - 100;
+				$result[$idx]["change"] = $change." %";
 			} else if ($result["today"] == 0) {
-				$percentage = $stat["today"] * 100;
-				$result[$idx]["percentage"] = $percentage." %";
+				$change = $stat["today"] * 100;
+				$result[$idx]["change"] = $change." %";
 			} else {
-				$percentage = 0;
-				$result[$idx]["percentage"] = "&#8734;";
+				$change = 0;
+				$result[$idx]["change"] = "&#8734;";
 			}
 
-			if ($percentage >= ALERT_HIGH) {
+			if ($change >= $settings->report_alert_high) {
 				$result[$idx]["alert"] = "high";
-			} else if ($percentage >= ALERT_MEDIUM) {
+			} else if ($change >= $settings->report_alert_medium) {
 				$result[$idx]["alert"] = "medium";
 			} else {
 				$result[$idx]["alert"] = "none";
@@ -134,7 +127,7 @@
 
 	/* Generate report for webserver
 	 */
-	function generate_report($db, $user, $webserver) {
+	function generate_report($db, $settings, $user, $webserver) {
 		static $reports = array();
 
 		if (isset($reports[$webserver["id"]])) {
@@ -177,7 +170,9 @@
 		$report = array(
 			"content" => "<h2>".$webserver["name"]."</h2>\n",
 			"alerts"  => array());
-		$type = USE_MEDIAN ? "Median" : "Average";
+		$type = $settings->report_use_median ? "Median" : "Average";
+
+		$add_count = 0;
 		foreach ($stats as $label => $stat) {
 			$header = "<h3>".$label."</h3>\n".
 				"<table class=\"stats\">\n".
@@ -185,16 +180,18 @@
 			$header_set = false;
 
 			$columns = array_keys($stat["details"]);
-			if (($information = get_information($db, $stat["table"], $columns, $user["id"], $webserver["id"], $stat["hostnames"])) == false) {
+			if (($information = get_information($db, $settings, $stat["table"], $columns, $user["id"], $webserver["id"], $stat["hostnames"])) == false) {
 				continue;
 			}
 
 			foreach ($information as $column => $value) {
-				if ($value["percentage"] < ALERT_MEDIUM) {
-					if (SKIP_NORMAL) {
+				if ($value["change"] < $settings->report_alert_medium) {
+					if ($settings->report_skip_normal) {
 						continue;
 					}
 				}
+
+				$add_count++;
 
 				if ($header_set == false) {
 					$report["content"] .= $header;
@@ -205,13 +202,15 @@
 				$previous = graph_model::readable_number($value["previous"]);
 				$report["content"] .= "<tr><td>".$stat["details"][$column].":</td>".
 					"<td class=\"alert_".$value["alert"]."\">".$today."</td>".
-					"<td>".$value["percentage"]."</td><td>".$previous."</td></tr>\n";
+					"<td>".$value["change"]."</td><td>".$previous."</td></tr>\n";
 				if ($value["alert"] != "none") {
 					array_push($report["alerts"], $webserver["name"]);
 				}
 			}
 
-			$report["content"] .= "</table>\n";
+			if ($header_set) {
+				$report["content"] .= "</table>\n";
+			}
 		}
 
 		$query = "select event, UNIX_TIMESTAMP(timestamp) as timestamp from events ".
@@ -226,6 +225,12 @@
 			}
 
 			$report["content"] .= "</table>\n";
+
+			$add_count++;
+		}
+
+		if ($add_count == 0) {
+			$report["content"] .= "<p>Nothing to report.</p>\n";
 		}
 
 		$reports[$webserver["id"]] = $report;
@@ -268,7 +273,7 @@
 		$report_content = "";
 		$report_alerts = array();
 		foreach ($webservers as $webserver) {
-			if (($report = generate_report($db, $user, $webserver)) == false) {
+			if (($report = generate_report($db, $settings, $user, $webserver)) == false) {
 				continue;
 			}
 			$report_content .= $report["content"];
@@ -290,7 +295,8 @@
 		$replace = array(
 			"ALERTS"    => $report_alerts,
 			"CONTENT"   => $report_content,
-			"HISTORY"   => HISTORY_DAYS - 1,
+			"TYPE"      => $settings->report_use_median ? "median" : "average",
+			"HISTORY"   => $settings->report_history_days - 1,
 			"TIMESTAMP" => date("j F Y, H:i (O)"));
 
 		$email = new email("Daily Hiawatha Monitor report", $settings->webmaster_email);
