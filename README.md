@@ -30,8 +30,8 @@ VirtualHost {
 
 CONFIGURE PHP
 ==============
-The Hiawatha Monitor requires the following PHP modules:
-	php5-mysql and php5-xsl
+The Hiawatha Monitor requires the following PHP(5/7) modules:
+	php-mysql and php-xsl
 
 Use the following PHP settings:
 	allow_url_include = Off
