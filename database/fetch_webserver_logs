@@ -1,395 +1,410 @@
 #!/usr/bin/php
 <?php
-	chdir(dirname($argv[0]));
-	require("../libraries/banshee.php");
-	require("../libraries/security.php");
+    chdir(dirname($argv[0]));
+    require '../libraries/banshee.php';
+    require '../libraries/security.php';
 
-	/* Database functions
-	 */
-	function get_version($db, $webserver_id) {
-		static $cache = array();
+    /* Database functions
+     */
+    function get_version($db, $webserver_id)
+    {
+        static $cache = array();
 
-		if (isset($cache[$webserver_id]) == false) {
-			$query = "select version from webservers where id=%d";
-			if (($result = $db->execute($query, $webserver_id)) == false) {
-				return false;
-			}
+        if (isset($cache[$webserver_id]) == false) {
+            $query = 'select version from webservers where id=%d';
+            if (($result = $db->execute($query, $webserver_id)) == false) {
+                return false;
+            }
 
-			list($version) = explode(",", $result[0]["version"], 2);
-			list(, $version) = explode("v", $version);
+            list($version) = explode(',', $result[0]['version'], 2);
+            list(, $version) = explode('v', $version);
 
-			$cache[$webserver_id] = $version;
-		}
+            $cache[$webserver_id] = $version;
+        }
 
-		return $cache[$webserver_id];
-	}
+        return $cache[$webserver_id];
+    }
 
-	function get_foreign_key($db, $table, $key, $value) {
-		static $cache = array();
+    function get_foreign_key($db, $table, $key, $value)
+    {
+        static $cache = array();
 
-		$index = implode(":", array($table, $key, $value));
-		if (isset($cache[$index])) {
-			return $cache[$index];
-		}
+        $index = implode(':', array($table, $key, $value));
+        if (isset($cache[$index])) {
+            return $cache[$index];
+        }
 
-		$query = "select id from %S where %S=%s";
-		if (($result = $db->execute($query, $table, $key, $value)) != false) {
-			$cache[$index] = (int)$result[0]["id"];
-		} else {
-			if ($db->insert($table, array("id" => null, $key => $value)) == false) {
-				return false;
-			}
-			$cache[$index] = $db->last_insert_id;
-		}
+        $query = 'select id from %S where %S=%s';
+        if (($result = $db->execute($query, $table, $key, $value)) != false) {
+            $cache[$index] = (int) $result[0]['id'];
+        } else {
+            if ($db->insert($table, array('id' => null, $key => $value)) == false) {
+                return false;
+            }
+            $cache[$index] = $db->last_insert_id;
+        }
 
-		return $cache[$index];
-	}
+        return $cache[$index];
+    }
 
-	function get_hostname_id($db, $value) {
-		return get_foreign_key($db, "hostnames", "hostname", $value);
-	}
+    function get_hostname_id($db, $value)
+    {
+        return get_foreign_key($db, 'hostnames', 'hostname', $value);
+    }
 
-	function log_event($db, $event, $webserver_id, $timestamp = null) {
-		if ($timestamp == null) {
-			$timestamp = time();
-		}
+    function log_event($db, $event, $webserver_id, $timestamp = null)
+    {
+        if ($timestamp == null) {
+            $timestamp = time();
+        }
 
-		$data = array(
-			"id"           => null,
-			"timestamp"    => date("Y-m-d H:i:s", $timestamp),
-			"webserver_id" => (int)$webserver_id,
-			"event"        => $event);
+        $data = array(
+            'id' => null,
+            'timestamp' => date('Y-m-d H:i:s', $timestamp),
+            'webserver_id' => (int) $webserver_id,
+            'event' => $event, );
 
-		return $db->insert("events", $data) !== false;
-	}
+        return $db->insert('events', $data) !== false;
+    }
 
-	function send_notification($db, $webserver_id, $message) {
-		$query = "select u.* from users u, webserver_user l ".
-		         "where u.id=l.user_id and l.webserver_id=%d and notification_method!=%s";
-		if (($users = $db->execute($query, $webserver_id, "none")) == false) {
-			return;
-		}
+    function send_notification($db, $webserver_id, $message)
+    {
+        $query = 'select u.* from users u, webserver_user l '.
+                 'where u.id=l.user_id and l.webserver_id=%d and notification_method!=%s';
+        if (($users = $db->execute($query, $webserver_id, 'none')) == false) {
+            return;
+        }
 
-		$prowl_keys = array();
-		$nma_keys = array();
-		$email_keys = array();
-		foreach ($users as $user) {
-			switch ($user["notification_method"]) {
-				case "prowl":
-					array_push($prowl_keys, $user["notification_key"]);
-					break;
-				case "nma":
-					array_push($nma_keys, $user["notification_key"]);
-					break;
-				case "email":
-					array_push($email_keys, $user["notification_key"]);
-					break;
-			}
-		}
+        $prowl_keys = array();
+        $nma_keys = array();
+        $email_keys = array();
+        foreach ($users as $user) {
+            switch ($user['notification_method']) {
+                case 'prowl':
+                    array_push($prowl_keys, $user['notification_key']);
+                    break;
+                case 'nma':
+                    array_push($nma_keys, $user['notification_key']);
+                    break;
+                case 'email':
+                    array_push($email_keys, $user['notification_key']);
+                    break;
+            }
+        }
 
-		/* Prowl
-		 */
-		if (count($prowl_keys) > 0) {
-			$prowl = new prowl("Hiawatha Monitor", $prowl_keys);
-			$prowl->send_notification("Event log", $message);
-		}
+        /* Prowl
+         */
+        if (count($prowl_keys) > 0) {
+            $prowl = new prowl('Hiawatha Monitor', $prowl_keys);
+            $prowl->send_notification('Event log', $message);
+        }
 
-		/* Notify My Andriod
-		 */
-		if (count($nma_keys) > 0) {
-			$nma = new NMA("Hiawatha Monitor", $nma_keys);
-			$nma->send_notification("Event log", $message);
-		}
+        /* Notify My Andriod
+         */
+        if (count($nma_keys) > 0) {
+            $nma = new NMA('Hiawatha Monitor', $nma_keys);
+            $nma->send_notification('Event log', $message);
+        }
 
-		/* E-mail
-		 */
-		if (count($email_keys) > 0) {
-			$settings = new settings($db);
-			$email = new email("Hiawatha Monitor event log", $settings->webmaster_email);
-			$email->message($message);
-			foreach ($email_keys as $address) {
-				$email->send($address);
-			}
-		}
-	}
+        /* E-mail
+         */
+        if (count($email_keys) > 0) {
+            $settings = new settings($db);
+            $email = new email('Hiawatha Monitor event log', $settings->webmaster_email);
+            $email->message($message);
+            foreach ($email_keys as $address) {
+                $email->send($address);
+            }
+        }
+    }
 
-	function get_date_hour($timestamp_begin, $timestamp_end) {
-		$date = date("Y-m-d", (int)$timestamp_begin);
-		$hour = date("G", (int)$timestamp_begin);
+    function get_date_hour($timestamp_begin, $timestamp_end)
+    {
+        $date = date('Y-m-d', (int) $timestamp_begin);
+        $hour = date('G', (int) $timestamp_begin);
 
-		$hour_end = date("G", (int)$timestamp_end);
-		if ($hour != $hour_end) {
-			if ((59 - (int)date("i", $timestamp_begin)) <= (int)date("i", $timestamp_end)) {
-				if ($hour_end < $hour) {
-					$date = date("Y-m-d", (int)$timestamp_end);
-				}
-				$hour = $hour_end;
-			}
-		}
+        $hour_end = date('G', (int) $timestamp_end);
+        if ($hour != $hour_end) {
+            if ((59 - (int) date('i', $timestamp_begin)) <= (int) date('i', $timestamp_end)) {
+                if ($hour_end < $hour) {
+                    $date = date('Y-m-d', (int) $timestamp_end);
+                }
+                $hour = $hour_end;
+            }
+        }
 
-		return array($date, $hour);
-	}
+        return array($date, $hour);
+    }
 
-	function handle_cgi_statistics($db, $webserver_id, $field) {
-		list(, $timestamp_begin, $timestamp_end, $hostname, $time_0_1,
-			   $time_1_3, $time_3_10, $time_10_x, $cgi_errors) = $field;
+    function handle_cgi_statistics($db, $webserver_id, $field)
+    {
+        list(, $timestamp_begin, $timestamp_end, $hostname, $time_0_1,
+               $time_1_3, $time_3_10, $time_10_x, $cgi_errors) = $field;
 
-		if (($hostname_id = get_hostname_id($db, $hostname)) == false) {
-			print "Error getting hostname id\n";
-			continue;
-		}
+        if (($hostname_id = get_hostname_id($db, $hostname)) == false) {
+            echo "Error getting hostname id\n";
+            //continue;
+        }
 
-		list($date, $hour) = get_date_hour($timestamp_begin, $timestamp_end);
+        list($date, $hour) = get_date_hour($timestamp_begin, $timestamp_end);
 
-		$query = "select * from cgi_statistics where webserver_id=%d and hostname_id=%d and date=%s and hour=%d";
-		$result = $db->execute($query, $webserver_id, $hostname_id, $date, $hour);
+        $query = 'select * from cgi_statistics where webserver_id=%d and hostname_id=%d and date=%s and hour=%d';
+        $result = $db->execute($query, $webserver_id, $hostname_id, $date, $hour);
 
-		if ($result == false) {
-			/* Insert new CGI record
-			 */
-			$db->insert("cgi_statistics", array(
-				"id"                    => null,
-				"date"                  => $date,
-				"hour"                  => $hour,
-				"webserver_id"          => (int)$webserver_id,
-				"hostname_id"           => (int)$hostname_id,
-				"time_0_1"              => (int)$time_0_1,
-				"time_1_3"              => (int)$time_1_3,
-				"time_3_10"             => (int)$time_3_10,
-				"time_10_x"             => (int)$time_10_x,
-				"cgi_errors"            => (int)$cgi_errors));
-		} else {
-			/* Update existing CGI record
-			 */
-			$current = $result[0];
-			$data = array(
-				"time_0_1"              => (int)($current["time_0_1"] + $time_0_1),
-				"time_1_3"              => (int)($current["time_1_3"] + $time_1_3),
-				"time_3_10"             => (int)($current["time_3_10"] + $time_3_10),
-				"time_10_x"             => (int)($current["time_10_x"] + $time_10_x),
-				"cgi_errors"            => (int)($current["cgi_errors"] + $cgi_errors));
-			$db->update("cgi_statistics", $current["id"], $data);
-		}
-	}
+        if ($result == false) {
+            /* Insert new CGI record
+             */
+            $db->insert('cgi_statistics', array(
+                'id' => null,
+                'date' => $date,
+                'hour' => $hour,
+                'webserver_id' => (int) $webserver_id,
+                'hostname_id' => (int) $hostname_id,
+                'time_0_1' => (int) $time_0_1,
+                'time_1_3' => (int) $time_1_3,
+                'time_3_10' => (int) $time_3_10,
+                'time_10_x' => (int) $time_10_x,
+                'cgi_errors' => (int) $cgi_errors, ));
+        } else {
+            /* Update existing CGI record
+             */
+            $current = $result[0];
+            $data = array(
+                'time_0_1' => (int) ($current['time_0_1'] + $time_0_1),
+                'time_1_3' => (int) ($current['time_1_3'] + $time_1_3),
+                'time_3_10' => (int) ($current['time_3_10'] + $time_3_10),
+                'time_10_x' => (int) ($current['time_10_x'] + $time_10_x),
+                'cgi_errors' => (int) ($current['cgi_errors'] + $cgi_errors), );
+            $db->update('cgi_statistics', $current['id'], $data);
+        }
+    }
 
-	function handle_server_statistics($db, $webserver_id, $field) {
-		list(, $timestamp_begin, $timestamp_end, $connections, $result_bad_request) = $field;
+    function handle_server_statistics($db, $webserver_id, $field)
+    {
+        list(, $timestamp_begin, $timestamp_end, $connections, $result_bad_request) = $field;
 
-		list($date, $hour) = get_date_hour($timestamp_begin, $timestamp_end);
+        list($date, $hour) = get_date_hour($timestamp_begin, $timestamp_end);
 
-		$query = "select * from server_statistics where webserver_id=%d and date=%s and hour=%d";
-		$result = $db->execute($query, $webserver_id, $date, $hour);
+        $query = 'select * from server_statistics where webserver_id=%d and date=%s and hour=%d';
+        $result = $db->execute($query, $webserver_id, $date, $hour);
 
-		if ($result == false) {
-			/* Insert new server record
-			 */
-			$db->insert("server_statistics", array(
-				"id"                 => null,
-				"date"               => $date,
-				"hour"               => $hour,
-				"webserver_id"       => (int)$webserver_id,
-				"connections"        => (int)$connections,
-				"result_bad_request" => (int)$result_bad_request));
-		} else {
-			/* Update existing server record
-			 */
-			$current = $result[0];
-			$data = array(
-				"connections"        => (int)($current["connections"] + $connections),
-				"result_bad_request" => (int)($current["result_bad_request"] + $result_bad_request));
-			$db->update("server_statistics", $current["id"], $data);
-		}
-	}
+        if ($result == false) {
+            /* Insert new server record
+             */
+            $db->insert('server_statistics', array(
+                'id' => null,
+                'date' => $date,
+                'hour' => $hour,
+                'webserver_id' => (int) $webserver_id,
+                'connections' => (int) $connections,
+                'result_bad_request' => (int) $result_bad_request, ));
+        } else {
+            /* Update existing server record
+             */
+            $current = $result[0];
+            $data = array(
+                'connections' => (int) ($current['connections'] + $connections),
+                'result_bad_request' => (int) ($current['result_bad_request'] + $result_bad_request), );
+            $db->update('server_statistics', $current['id'], $data);
+        }
+    }
 
-	function handle_host_statistics($db, $webserver_id, $field) {
-		if (($webserver_version = get_version($db, $webserver_id)) == false) {
-			$lower_than_9_13 = true;
-		} else {
-			list($webserver_version) = explode("-", $webserver_version);
-			$lower_than_9_13 = version_compare($webserver_version, "9.13", "<");
-		}
+    function handle_host_statistics($db, $webserver_id, $field)
+    {
+        if (($webserver_version = get_version($db, $webserver_id)) == false) {
+            $lower_than_9_13 = true;
+        } else {
+            list($webserver_version) = explode('-', $webserver_version);
+            $lower_than_9_13 = version_compare($webserver_version, '9.13', '<');
+        }
 
-		if ($lower_than_9_13) {
-			list(, $timestamp_begin, $timestamp_end, $hostname, $requests, $bytes_sent, $bans, $exploit_attempts,
-				   $result_forbidden, $result_not_found, $result_internal_error) = $field;
-			$failed_logins = 0;
-		} else {
-			list(, $timestamp_begin, $timestamp_end, $hostname, $requests, $bytes_sent, $bans, $exploit_attempts,
-				$failed_logins, $result_forbidden, $result_not_found, $result_internal_error) = $field;
-		}
+        if ($lower_than_9_13) {
+            list(, $timestamp_begin, $timestamp_end, $hostname, $requests, $bytes_sent, $bans, $exploit_attempts,
+                   $result_forbidden, $result_not_found, $result_internal_error) = $field;
+            $failed_logins = 0;
+        } else {
+            list(, $timestamp_begin, $timestamp_end, $hostname, $requests, $bytes_sent, $bans, $exploit_attempts,
+                $failed_logins, $result_forbidden, $result_not_found, $result_internal_error) = $field;
+        }
 
-		if (($hostname_id = get_hostname_id($db, $hostname)) == false) {
-			print "Error getting hostname id\n";
-			continue;
-		}
+        if (($hostname_id = get_hostname_id($db, $hostname)) == false) {
+            echo "Error getting hostname id\n";
+            //continue;
+        }
 
-		list($date, $hour) = get_date_hour($timestamp_begin, $timestamp_end);
+        list($date, $hour) = get_date_hour($timestamp_begin, $timestamp_end);
 
-		$query = "select * from host_statistics where webserver_id=%d and hostname_id=%d and date=%s and hour=%d";
-		$result = $db->execute($query, $webserver_id, $hostname_id, $date, $hour);
+        $query = 'select * from host_statistics where webserver_id=%d and hostname_id=%d and date=%s and hour=%d';
+        $result = $db->execute($query, $webserver_id, $hostname_id, $date, $hour);
 
-		if ($result == false) {
-			/* Insert new host record
-			 */
-			$db->insert("host_statistics", array(
-				"id"                    => null,
-				"date"                  => $date,
-				"hour"                  => $hour,
-				"webserver_id"          => (int)$webserver_id,
-				"hostname_id"           => (int)$hostname_id,
-				"requests"              => (int)$requests,
-				"bytes_sent"            => (int)$bytes_sent,
-				"bans"                  => (int)$bans,
-				"exploit_attempts"      => (int)$exploit_attempts,
-				"failed_logins"         => (int)$failed_logins,
-				"result_forbidden"      => (int)$result_forbidden,
-				"result_not_found"      => (int)$result_not_found,
-				"result_internal_error" => (int)$result_internal_error));
-		} else {
-			/* Update existing host record
-			 */
-			$current = $result[0];
-			$data = array(
-				"requests"              => (int)($current["requests"] + $requests),
-				"bytes_sent"            => (int)($current["bytes_sent"] + $bytes_sent),
-				"bans"                  => (int)($current["bans"] + $bans),
-				"exploit_attempts"      => (int)($current["exploit_attempts"] + $exploit_attempts),
-				"failed_logins"         => (int)($current["failed_logins"] + $failed_logins),
-				"result_forbidden"      => (int)($current["result_forbidden"] + $result_forbidden),
-				"result_not_found"      => (int)($current["result_not_found"] + $result_not_found),
-				"result_internal_error" => (int)($current["result_internal_error"] + $result_internal_error));
-			$db->update("host_statistics", $current["id"], $data);
-		}
-	}
+        if ($result == false) {
+            /* Insert new host record
+             */
+            $db->insert('host_statistics', array(
+                'id' => null,
+                'date' => $date,
+                'hour' => $hour,
+                'webserver_id' => (int) $webserver_id,
+                'hostname_id' => (int) $hostname_id,
+                'requests' => (int) $requests,
+                'bytes_sent' => (int) $bytes_sent,
+                'bans' => (int) $bans,
+                'exploit_attempts' => (int) $exploit_attempts,
+                'failed_logins' => (int) $failed_logins,
+                'result_forbidden' => (int) $result_forbidden,
+                'result_not_found' => (int) $result_not_found,
+                'result_internal_error' => (int) $result_internal_error, ));
+        } else {
+            /* Update existing host record
+             */
+            $current = $result[0];
+            $data = array(
+                'requests' => (int) ($current['requests'] + $requests),
+                'bytes_sent' => (int) ($current['bytes_sent'] + $bytes_sent),
+                'bans' => (int) ($current['bans'] + $bans),
+                'exploit_attempts' => (int) ($current['exploit_attempts'] + $exploit_attempts),
+                'failed_logins' => (int) ($current['failed_logins'] + $failed_logins),
+                'result_forbidden' => (int) ($current['result_forbidden'] + $result_forbidden),
+                'result_not_found' => (int) ($current['result_not_found'] + $result_not_found),
+                'result_internal_error' => (int) ($current['result_internal_error'] + $result_internal_error), );
+            $db->update('host_statistics', $current['id'], $data);
+        }
+    }
 
-	/* HTTP class extensions
-	 */
-	class HTTP_monitor extends HTTP {
-		public function __call($method, $parameters) {
-			$this->host = "monitor";
-			return parent::__call($method, $parameters);
-		}
-	}
+    /* HTTP class extensions
+     */
+    class HTTP_monitor extends HTTP
+    {
+        public function __call($method, $parameters)
+        {
+            $this->host = 'monitor';
 
-	class HTTPS_monitor extends HTTPS {
-		public function __call($method, $parameters) {
-			$this->host = "monitor";
-			return parent::__call($method, $parameters);
-		}
-	}
+            return parent::__call($method, $parameters);
+        }
+    }
 
-	/* Main program
-	 */
-	error_reporting(E_ALL & ~E_NOTICE);
+    class HTTPS_monitor extends HTTPS
+    {
+        public function __call($method, $parameters)
+        {
+            $this->host = 'monitor';
 
-	$debug_mode = ($argv[1] == "-d");
+            return parent::__call($method, $parameters);
+        }
+    }
 
-	$db = new MySQLi_connection(DB_HOSTNAME, DB_DATABASE, DB_USERNAME, DB_PASSWORD);
-	if ($db->connected == false) {
-		exit("Internal error: database not available.\n");
-	}
+    /* Main program
+     */
+    error_reporting(E_ALL & ~E_NOTICE);
 
-	if (($webservers = $db->execute("select * from webservers where active=%d", 1)) === false) {
-		exit("Error retrieving webserver IP addresses.\n");
-	}
+    $debug_mode = ($argv[1] == '-d');
 
-	foreach ($webservers as $webserver) {
-		if (isset($http)) {
-			unset($http);
-		}
-		if (is_true($webserver["tls"]) == false) {
-			$http = new HTTP_monitor($webserver["ip_address"], $webserver["port"]);;
-		} else {
-			$http = new HTTPS_monitor($webserver["ip_address"], $webserver["port"]);;
-		}
+    $db = new MySQLi_connection(DB_HOSTNAME, DB_DATABASE, DB_USERNAME, DB_PASSWORD);
+    if ($db->connected == false) {
+        exit("Internal error: database not available.\n");
+    }
 
-		$webserver_id = (int)$webserver["id"];
+    if (($webservers = $db->execute('select * from webservers where active=%d', 1)) === false) {
+        exit("Error retrieving webserver IP addresses.\n");
+    }
 
-		if ($debug_mode) {
-			printf("Retrieving index from %s...\n", $webserver["name"]);
-		}
-		$result = $http->GET("/");
-		if ($result["status"] != 200) {
-			$db->update("webservers", $webserver_id, array("errors" => $webserver["errors"] + 1));
-			$event = "Error while getting statistics logfile index from webserver";
-			log_event($db, $event, $webserver_id);
-			if ($debug_mode) {
-				printf("%s\n", $event);
-			}
+    foreach ($webservers as $webserver) {
+        if (isset($http)) {
+            unset($http);
+        }
+        if (is_true($webserver['tls']) == false) {
+            $http = new HTTP_monitor($webserver['ip_address'], $webserver['port']);
+        } else {
+            $http = new HTTPS_monitor($webserver['ip_address'], $webserver['port']);
+        }
 
-			$message = sprintf("Webserver %s appears to be offline.", $webserver["name"]);
-			send_notification($db, $webserver_id, $message);
-			continue;
-		}
+        $webserver_id = (int) $webserver['id'];
 
-		if ($webserver["errors"] != 0) {
-			$db->update("webservers", $webserver_id, array("errors" => 0));
-		}
+        if ($debug_mode) {
+            printf("Retrieving index from %s...\n", $webserver['name']);
+        }
+        $result = $http->GET('/');
+        if ($result['status'] != 200) {
+            $db->update('webservers', $webserver_id, array('errors' => $webserver['errors'] + 1));
+            $event = 'Error while getting statistics logfile index from webserver';
+            log_event($db, $event, $webserver_id);
+            if ($debug_mode) {
+                printf("%s\n", $event);
+            }
 
-		if ($result["headers"]["content-type"] != "text/xml") {
-			continue;
-		}
+            $message = sprintf('Webserver %s appears to be offline.', $webserver['name']);
+            send_notification($db, $webserver_id, $message);
+            continue;
+        }
 
-		$index = new DomDocument();
-		if ($index->loadXML($result["body"]) == false) {
-			continue;
-		}
+        if ($webserver['errors'] != 0) {
+            $db->update('webservers', $webserver_id, array('errors' => 0));
+        }
 
-		$files = $index->getElementsByTagName("file");
+        if ($result['headers']['content-type'] != 'text/xml') {
+            continue;
+        }
 
-		foreach ($files as $file) {
-			if ($debug_mode) {
-				printf("Downloading %s...\n", $file->nodeValue);
-			}
-			$result = $http->GET("/".$file->nodeValue);
-			if ($result["status"] != 200) {
-				$event = "Error while getting data file from webserver";
-				log_event($db, $event, $webserver_id);
-				if ($debug_mode) {
-					printf("%s\n", $event);
-				}
-				continue;
-			}
-			if ($result["headers"]["content-type"] == "application/x-gzip") {
-				if (($result["body"] = gzdecode($result["body"])) === false) {
-					printf("Invalid gzipped data received from %s.\n", $webserver["name"]);
-					continue;
-				}
-			}
+        $index = new DomDocument();
+        if ($index->loadXML($result['body']) == false) {
+            continue;
+        }
 
-			$loglines = explode("\n", chop($result["body"]));
+        $files = $index->getElementsByTagName('file');
 
-			foreach ($loglines as $logline) {
-				if ($debug_mode) {
-					printf("Processing [%s]\n", $logline);
-				}
-				$field = explode("\t", chop($logline));
+        foreach ($files as $file) {
+            if ($debug_mode) {
+                printf("Downloading %s...\n", $file->nodeValue);
+            }
+            $result = $http->GET('/'.$file->nodeValue);
+            if ($result['status'] != 200) {
+                $event = 'Error while getting data file from webserver';
+                log_event($db, $event, $webserver_id);
+                if ($debug_mode) {
+                    printf("%s\n", $event);
+                }
+                continue;
+            }
+            if ($result['headers']['content-type'] == 'application/x-gzip') {
+                if (($result['body'] = gzdecode($result['body'])) === false) {
+                    printf("Invalid gzipped data received from %s.\n", $webserver['name']);
+                    continue;
+                }
+            }
 
-				switch ($field[0]) {
-					case "request":
-						break;
-					case "cgi":
-						handle_cgi_statistics($db, $webserver_id, $field);
-						break;
-					case "server":
-						handle_server_statistics($db, $webserver_id, $field);
-						break;
-					case "host":
-						handle_host_statistics($db, $webserver_id, $field);
-						break;
-					case "event";
-						list(, $event, $timestamp) = $field;
-						log_event($db, $event, $webserver_id, (int)$timestamp);
-						break;
-					case "version":
-						list(, $version) = $field;
-						$db->update("webservers", $webserver_id, array("version" => $version));
-						break;
-					default:
-						list($event, $timestamp) = $field;
-						log_event($db, $event, $webserver_id, (int)$timestamp);
-				}
-			}
-		}
-	}
+            $loglines = explode("\n", chop($result['body']));
+
+            foreach ($loglines as $logline) {
+                if ($debug_mode) {
+                    printf("Processing [%s]\n", $logline);
+                }
+                $field = explode("\t", chop($logline));
+
+                switch ($field[0]) {
+                    case 'request':
+                        break;
+                    case 'cgi':
+                        handle_cgi_statistics($db, $webserver_id, $field);
+                        break;
+                    case 'server':
+                        handle_server_statistics($db, $webserver_id, $field);
+                        break;
+                    case 'host':
+                        handle_host_statistics($db, $webserver_id, $field);
+                        break;
+                    case 'event';
+                        list(, $event, $timestamp) = $field;
+                        log_event($db, $event, $webserver_id, (int) $timestamp);
+                        break;
+                    case 'version':
+                        list(, $version) = $field;
+                        $db->update('webservers', $webserver_id, array('version' => $version));
+                        break;
+                    default:
+                        list($event, $timestamp) = $field;
+                        log_event($db, $event, $webserver_id, (int) $timestamp);
+                }
+            }
+        }
+    }
 ?>
