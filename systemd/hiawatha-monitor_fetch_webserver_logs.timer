@@ -1,0 +1,8 @@
+[Unit]
+Description=Run hiawatha-monitor_fetch_webserver_logs every 5min
+
+[Timer]
+OnCalendar=*:0/5
+
+[Install]
+WantedBy=timers.target

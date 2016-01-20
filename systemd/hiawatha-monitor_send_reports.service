@@ -1,0 +1,12 @@
+Unit]
+Description=Run hiawatha-monitor_send_reports
+RefuseManualStart=no
+RefuseManualStop=yes
+#OnFailure=failure-email@%i.service
+
+[Service]
+User=http
+Type=oneshot
+CPUShares=256
+MemorySoftLimit=256
+ExecStart=/srv/http/monitor/database/send_reports

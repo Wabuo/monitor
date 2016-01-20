@@ -1,0 +1,9 @@
+[Unit]
+Description=Run hiawatha-monitor_send_reports daily at 23:59
+
+[Timer]
+OnCalendar=daily 23:59
+
+
+[Install]
+WantedBy=timers.target
