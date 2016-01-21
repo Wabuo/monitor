@@ -41,7 +41,7 @@ Use the following PHP settings:
 
 *   `allow_url_include = Off`
 *   `cgi.fix_pathinfo = 0 ("0" when using FastCGI PHP), ("1" otherwise)`
-*   `date.timezone = <your timezone>`
+*   `date.timezone = <your timezone>` [List of Supported Timezones](https://secure.php.net/manual/en/timezones.php)
 *   `magic_quotes_gpc = Off`
 *   `register_globals = Off`
 
