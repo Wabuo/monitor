@@ -5,7 +5,9 @@ to understand what the Hiawatha Monitor is and how it works.
 
 ##CONFIGURE YOUR WEBSERVER
 
-Use the following Hiawatha configuration for this website.
+Use the following Hiawatha configuration for the Hiawatha Monitor website.
+
+On modern Linux distributions change `/var/www/...` to `/srv/http/...`.
 
 ```conf
 UrlToolkit {
@@ -23,7 +25,7 @@ VirtualHost {
   AccessLogfile = /var/www/monitor/logfiles/access.log
   ErrorLogfile = /var/www/monitor/logfiles/error.log
   ExecuteCGI = yes
-  # UseFastCGI = PHP5 # Use if you use PHP as a FastCGI daemon
+  # UseFastCGI = PHP5 #Uncomment if you use PHP as a FastCGI daemon (chage to PHP7 if needed)
   TimeForCGI = 15
   UseToolkit = monitor
 }
@@ -60,8 +62,18 @@ webservers and to send the daily reports:
   59 23 * * * /path/to/monitor/website/database/send_reports
 ```
 
-##USING THE HIAWATHA MONITOR
+##CONFIGURE systemd Timers
+Copy the files from the systemd_timers folder to `/etc/systemd/system/`.
+Afterwards remove the systemd_timers folder.
 
+Then enable the Timers with:
+
+```sh
+sudo systemctl enable hiawatha-monitor_delete_old_logs.timer
+hiawatha-monitor_fetch_webserver_logs.timer hiawatha-monitor_send_reports.timer
+```
+
+##USING THE HIAWATHA MONITOR
 Login with username **admin** and password **monitor** and start adding
 webservers in the Webserver Administration page.
 Add `MonitorServer = <IP of monitor server>` to the configuration file of your
