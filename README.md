@@ -1,9 +1,10 @@
-#UNDERSTAND HOW THE HIAWATHA MONITOR WORKS
+#HOW TO INSTALL THE HIAWATHA MONITOR
+###UNDERSTAND HOW THE HIAWATHA MONITOR WORKS
 
 Read the information at [The Hiawatha Monitor HowTo](https://www.hiawatha-webserver.org/howto/monitor)
 to understand what the Hiawatha Monitor is and how it works.
 
-##CONFIGURE YOUR WEBSERVER
+###CONFIGURE YOUR WEBSERVER
 
 Use the following Hiawatha configuration for the Hiawatha Monitor website.
 
@@ -32,7 +33,7 @@ VirtualHost {
 
 ```
 
-##CONFIGURE PHP
+###CONFIGURE PHP
 
 The Hiawatha Monitor requires the following PHP5 / PHP7 modules:
 
@@ -47,12 +48,12 @@ Use the following PHP settings:
 *   `magic_quotes_gpc = Off`
 *   `register_globals = Off`
 
-##CONFIGURE YOUR DATABASE
+###CONFIGURE YOUR DATABASE
 
 Open the website in your browser and follow the instructions on your screen.
 In case of an error, add `/setup` to the URL.
 
-##CONFIGURE CRON DAEMON
+###CONFIGURE CRON DAEMON
 Use the following crontab settings to fetch the information from the
 webservers and to send the daily reports:
 
@@ -62,7 +63,7 @@ webservers and to send the daily reports:
   59 23 * * * /path/to/monitor/website/database/send_reports
 ```
 
-##CONFIGURE systemd Timers
+###CONFIGURE systemd Timers
 Copy the files from the systemd_timers folder to `/etc/systemd/system/`.
 Afterwards remove the systemd_timers folder.
 
@@ -73,7 +74,7 @@ sudo systemctl enable hiawatha-monitor_delete_old_logs.timer
 hiawatha-monitor_fetch_webserver_logs.timer hiawatha-monitor_send_reports.timer
 ```
 
-##USING THE HIAWATHA MONITOR
+###USING THE HIAWATHA MONITOR
 Login with username **admin** and password **monitor** and start adding
 webservers in the Webserver Administration page.
 Add `MonitorServer = <IP of monitor server>` to the configuration file of your
