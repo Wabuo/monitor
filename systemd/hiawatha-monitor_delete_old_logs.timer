@@ -1,9 +1,0 @@
-[Unit]
-Description=Run hiawatha-monitor_delete_old_logs daily
-
-[Timer]
-OnCalendar=daily
-
-
-[Install]
-WantedBy=timers.target
