@@ -1,4 +1,4 @@
-#UNDERSTAND HOW HIAWATHA MONITOR WORKS
+#UNDERSTAND HOW THE HIAWATHA MONITOR WORKS
 
 Read the information at [The Hiawatha Monitor HowTo](https://www.hiawatha-webserver.org/howto/monitor)
 to understand what the Hiawatha Monitor is and how it works.
