@@ -81,8 +81,7 @@ Afterwards remove the systemd_timers folder.
 Then enable the Timers with:
 
 ```sh
-sudo systemctl enable hiawatha-monitor_delete_old_logs.timer
-hiawatha-monitor_fetch_webserver_logs.timer hiawatha-monitor_send_reports.timer
+sudo systemctl enable hiawatha-monitor_delete_old_logs.timer hiawatha-monitor_fetch_webserver_logs.timer hiawatha-monitor_send_reports.timer
 ```
 
 ###USING THE HIAWATHA MONITOR
