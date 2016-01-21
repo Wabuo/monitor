@@ -87,6 +87,8 @@ Add `MonitorServer = <IP of monitor server>` to the configuration file of your
 Hiawatha webservers.
 
 Don't forget to change the **admin** password and to check out the settings in
-the Settings administration page. When you're done testing,
+the Settings administration page.
+
+When you're done testing,
 set `DEBUG_MODE = no` in `/.../settings/website.conf` and remove the setup
 module from `/.../settings/public_pages.conf`.
