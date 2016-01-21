@@ -72,6 +72,9 @@ webservers and to send the daily reports:
 ```
 
 ###CONFIGURE systemd Timers
+The systemd Timer service files are run by the user `http` make sure that
+the `http` user has read access to `.../monitor/website/database/`!
+
 Copy the files from the systemd_timers folder to `/etc/systemd/system/`.
 Afterwards remove the systemd_timers folder.
 
