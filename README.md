@@ -35,12 +35,18 @@ VirtualHost {
 
 ###CONFIGURE PHP
 
-The Hiawatha Monitor requires the following PHP5 / PHP7 modules:
+The Hiawatha Monitor requires the following PHP modules:
 
-*   `php-mysql`
-*   `php-xsl`
+*   **PHP7:**
+    *   `php-pgsql`
+    *   `php-xsl`
 
-Use the following PHP settings:
+
+*   **PHP5:**
+    *   `php-mysql`
+    *   `php-xsl`
+
+#####Use the following PHP settings:
 
 *   `allow_url_include = Off`
 *   `cgi.fix_pathinfo = 0 ("0" when using FastCGI PHP), ("1" otherwise)`
