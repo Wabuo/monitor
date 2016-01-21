@@ -60,6 +60,8 @@ Open the website in your browser and follow the instructions on your screen.
 In case of an error, add `/setup` to the URL.
 
 ###CONFIGURE CRON DAEMON
+If you want to use systemd Timers see the next section.
+
 Use the following crontab settings to fetch the information from the
 webservers and to send the daily reports:
 
