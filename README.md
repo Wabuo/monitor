@@ -38,21 +38,31 @@ VirtualHost {
 The Hiawatha Monitor requires the following PHP modules:
 
 *   **PHP7:**
+
     *   `php-pgsql`
     *   `php-xsl`
 
 
 *   **PHP5:**
+
     *   `php-mysql`
     *   `php-xsl`
 
 #####Use the following PHP settings:
 
-*   `allow_url_include = Off`
-*   `cgi.fix_pathinfo = 0; "0" when using FastCGI PHP, "1" otherwise`
-*   `date.timezone = <your timezone>` [List of Supported Timezones](https://secure.php.net/manual/en/timezones.php)
-*   `magic_quotes_gpc = Off`
-*   `register_globals = Off`
+*   **PHP5:**
+
+    *   `allow_url_include = Off`
+    *   `cgi.fix_pathinfo = 0; "0" when using FastCGI PHP, "1" otherwise`
+    *   `date.timezone = <your timezone>` [List of Supported Timezones](https://secure.php.net/manual/en/timezones.php)
+    *   `magic_quotes_gpc = Off`
+    *   `register_globals = Off`
+
+*   **PHP7:**
+
+    *   `allow_url_include = Off`
+    *   `cgi.fix_pathinfo = 0; "0" when using FastCGI PHP, "1" otherwise`
+    *   `date.timezone = <your timezone>` [List of Supported Timezones](https://secure.php.net/manual/en/timezones.php)
 
 ###CONFIGURE YOUR DATABASE
 
