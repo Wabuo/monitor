@@ -30,7 +30,6 @@ VirtualHost {
   TimeForCGI = 15
   UseToolkit = monitor
 }
-
 ```
 
 ###Configure PHP
@@ -50,6 +49,12 @@ The Hiawatha Monitor requires the following PHP modules:
 
 #####Use the following PHP settings:
 
+*   **PHP7:**
+
+    *   `allow_url_include = Off`
+    *   `cgi.fix_pathinfo = 0; "0" when using FastCGI PHP, "1" otherwise`
+    *   `date.timezone = <your timezone>` [List of Supported Timezones](https://secure.php.net/manual/en/timezones.php)
+
 *   **PHP5:**
 
     *   `allow_url_include = Off`
@@ -57,12 +62,6 @@ The Hiawatha Monitor requires the following PHP modules:
     *   `date.timezone = <your timezone>` [List of Supported Timezones](https://secure.php.net/manual/en/timezones.php)
     *   `magic_quotes_gpc = Off`
     *   `register_globals = Off`
-
-*   **PHP7:**
-
-    *   `allow_url_include = Off`
-    *   `cgi.fix_pathinfo = 0; "0" when using FastCGI PHP, "1" otherwise`
-    *   `date.timezone = <your timezone>` [List of Supported Timezones](https://secure.php.net/manual/en/timezones.php)
 
 ###Configure Your Database
 
