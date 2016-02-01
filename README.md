@@ -39,7 +39,7 @@ The Hiawatha Monitor requires the following PHP modules:
 
 *   **PHP7:**
 
-    *   `php-pgsql`
+    *   `pdo_mysql`
     *   `php-xsl`
 
 
