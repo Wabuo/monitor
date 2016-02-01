@@ -105,5 +105,5 @@ You will find the Settings and administration page behind the **CMS** Link in
 the bottom right corner.
 
 When you're done testing,
-set `DEBUG_MODE = no` in `/.../settings/website.conf` and remove the setup
+set `DEBUG_MODE = no` in the `/.../settings/website.conf` and remove the setup
 module from `/.../settings/public_pages.conf`.
